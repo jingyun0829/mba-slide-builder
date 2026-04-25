@@ -340,7 +340,7 @@ body {
     <ul id="summary-list"></ul>
   </div>
 
-  <div class="footer">Made with the Business School Slide Builder · Your progress is saved on this device only.</div>
+  <div class="footer">Made with SlideGen · Your progress is saved on this device only.</div>
 </div>
 
 <script>

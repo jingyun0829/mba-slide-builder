@@ -1,7 +1,7 @@
 """In-app AI help assistant.
 
-Wraps Claude Haiku with a system prompt that knows the slide builder's
-6 stages, so it can answer "how do I do X" questions in 1-3 sentences.
+Wraps Claude Haiku with a system prompt that knows SlideGen's 6 stages,
+so it can answer "how do I do X" questions in 1-3 sentences.
 
 Used by the floating chat widget at the bottom-right of every page.
 """
@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import anthropic
 
-SYSTEM_PROMPT = """You are the in-app help assistant for **MBA Slide Builder**, a Streamlit app that lets business school instructors generate course slides with AI. Users are professors and lecturers, NOT software engineers — keep answers practical and non-technical.
+SYSTEM_PROMPT = """You are the in-app help assistant for **SlideGen**, a Streamlit app that lets business school instructors (undergrad, MBA, EMBA, executive ed) generate AI course decks. Users are professors and lecturers, NOT software engineers — keep answers practical and non-technical.
 
 ## What the app does
 The user goes through 6 stages, each in its own tab at the top of the page:

@@ -1,4 +1,4 @@
-"""Business School Slide Builder — HTML-native + style + dataset."""
+"""SlideGen — AI course decks for business school instructors."""
 import json, os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -22,7 +22,7 @@ def _bridge_secrets_to_env():
         pass  # no secrets.toml — local dev mode, .env is enough
 _bridge_secrets_to_env()
 
-st.set_page_config(page_title="Business School Slide Builder", layout="wide", page_icon="📚")
+st.set_page_config(page_title="SlideGen", layout="wide", page_icon="📚")
 
 # ── Authentication gate ───────────────────────────────────────────────
 # Show the invite-code login screen FIRST. Nothing else loads until the
@@ -706,9 +706,9 @@ hero_col, back_col = st.columns([5, 1])
 with hero_col:
     st.markdown("""
 <div class="hero">
-  <h1>📚 Business School Slide Builder</h1>
-  <div class="hero-sub">Generate course-aware, style-matched lecture decks in your voice.</div>
-  <div class="hero-flow">Course → Style → Session → Deck → Notes</div>
+  <h1>📚 SlideGen</h1>
+  <div class="hero-sub">AI course decks for business school instructors — style-matched, in your voice.</div>
+  <div class="hero-flow">Course → Style → Session → Deck → Video → Study guide</div>
 </div>
 """, unsafe_allow_html=True)
 with back_col:

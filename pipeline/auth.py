@@ -173,12 +173,17 @@ def render_login_gate() -> bool:
     st.markdown(
         """
         <div style="max-width:520px;margin:8vh auto 0;padding:0 24px;">
-          <h1 style="font-family:'Source Serif Pro',Georgia,serif;font-size:38pt;
-                     margin:0 0 8px;color:#0d9488;letter-spacing:-1px;">
-            MBA Slide Builder
+          <h1 style="font-family:'Source Serif Pro',Georgia,serif;font-size:54pt;
+                     margin:0 0 4px;color:#0d9488;letter-spacing:-2px;line-height:1;">
+            SlideGen
           </h1>
+          <div style="font-size:11pt;color:#94a3b8;letter-spacing:3px;
+                      text-transform:uppercase;margin:0 0 18px;font-weight:600;">
+            AI course decks · for B-school instructors
+          </div>
           <p style="font-size:14pt;color:#475569;margin:0 0 28px;line-height:1.5;">
-            AI-generated course decks for business school instructors.
+            Generate slide-by-slide lecture decks in your own teaching style —
+            undergrad, MBA, EMBA, or executive ed.
             Currently in <strong>private beta</strong> — please enter your
             invite code below.
           </p>
