@@ -470,21 +470,28 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
 /* Feature cards — stagger entrance */
 .welcome-features {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 18px;
-    max-width: 880px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    max-width: 1240px;
     margin: 0 auto 40px;
+}
+@media (max-width: 1100px) {
+    .welcome-features { grid-template-columns: repeat(3, 1fr); max-width: 720px; }
+}
+@media (max-width: 640px) {
+    .welcome-features { grid-template-columns: repeat(2, 1fr); }
 }
 .welcome-feature {
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 18px;
-    padding: 24px 22px 20px;
+    border-radius: 16px;
+    padding: 18px 14px 16px;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
     opacity: 0;
     animation: fadeUp 0.7s ease-out forwards;
+    min-height: 200px;
 }
 .welcome-feature:nth-child(1) { animation-delay: 1.1s; }
 .welcome-feature:nth-child(2) { animation-delay: 1.25s; }
@@ -499,20 +506,21 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
     box-shadow: 0 20px 40px rgba(13,148,136,0.25);
 }
 .welcome-feature .feat-icon {
-    font-size: 30pt;
-    margin-bottom: 10px;
+    font-size: 24pt;
+    margin-bottom: 8px;
     display: block;
 }
 .welcome-feature .feat-title {
     font-weight: 700;
-    font-size: 13pt;
+    font-size: 12pt;
     margin-bottom: 6px;
     color: white;
+    line-height: 1.2;
 }
 .welcome-feature .feat-desc {
-    font-size: 11pt;
+    font-size: 10pt;
     color: rgba(255,255,255,0.65);
-    line-height: 1.5;
+    line-height: 1.45;
 }
 
 /* CTA hint with bounce */
