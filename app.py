@@ -707,7 +707,7 @@ if not st.session_state["welcomed"]:
             st.session_state["welcomed"] = True
             st.rerun()
     st.markdown(
-        '<div class="app-footer">Built with Claude · Sonnet 4.6 + Haiku 4.5 · Made for business school instructors</div>',
+        '<div class="app-footer">Made for business school instructors</div>',
         unsafe_allow_html=True
     )
     st.stop()
@@ -1025,9 +1025,9 @@ with tabs[2]:
             index=_audience_keys.index("standard"),
             help="Intro = analogies + simple lines + no math. Standard = MBA default. Advanced = research citations + math + framework critique.",
         )
-        use_examples = st.checkbox("Fetch recent examples (Tavily)", value=True)
+        use_examples = st.checkbox("Fetch recent real-world examples", value=True)
         latest_only = st.checkbox("📰 Latest cases only (last 6 mo.)", value=False,
-            help="When on, Tavily searches the last 6 months only — best for fast-moving topics like AI, tech, current macro. Default is 18 months.")
+            help="When on, searches the last 6 months only — best for fast-moving topics like AI, tech, current macro. Default is 18 months.")
         st.markdown("**Deck content**")
         target_slides = st.number_input("Target slide count", min_value=10, max_value=80, value=default_slides, step=1)
         include_code = st.checkbox("Include code (Step 1/2/3)", value=False)
@@ -1091,8 +1091,6 @@ with tabs[2]:
         st.caption("ℹ️ This is Week 1 — no prior content to recap.")
     elif not _prior_mem and _current_week and _current_week > 1:
         st.caption("⚠️ No syllabus loaded — generate one in Stage 1 to unlock memory for prior weeks.")
-
-    st.caption("Outline generation uses Sonnet by default (5× cheaper than Opus). Set ANTHROPIC_OUTLINE_MODEL in .env to override.")
 
     _can_build = _auth.can_build()
     _gen_label = "Generate outline" if _can_build else "Generate outline (quota reached)"
@@ -1338,7 +1336,7 @@ with tabs[2]:
         st.markdown("### 🔬 AI evaluation")
         eval_col1, eval_col2 = st.columns([3, 2])
         with eval_col1:
-            st.caption("Have Claude grade this outline on 6 dimensions: structure, style match, depth, engagement, specificity, code quality. ~$0.05, 10 seconds.")
+            st.caption("Grade this outline on 6 dimensions: structure, style match, depth, engagement, specificity, code quality.")
         with eval_col2:
             if st.button("🔬 Evaluate this outline", key="eval_outline", use_container_width=True):
                 with st.spinner("Grading outline..."):
@@ -1389,7 +1387,7 @@ with tabs[2]:
         st.markdown("### 🎯 Compare alternative versions")
         st.caption(
             "Generate 3 alternative outlines from different angles, evaluate each, "
-            "and pick the highest-scoring one. ~$0.40 total, ~30 seconds (parallel)."
+            "and pick the highest-scoring one. Takes about 30 seconds."
         )
         # Alternatives = 3 outlines, costs 3 toward the quota
         _alt_remaining = _auth.remaining_decks()
@@ -1507,10 +1505,7 @@ with tabs[2]:
 
 with tabs[3]:
     st.subheader("Stage 4 — Deck (render only)")
-    st.caption(
-        "Renders the outline from Stage 3. No outline regeneration — cheap and fast. "
-        "Only SVG diagrams (Haiku) and optional Excel dataset cost anything here."
-    )
+    st.caption("Render the outline from Stage 3 as a deck. Pick image style and background, then build.")
     if not st.session_state["outline"]:
         st.info("Generate an outline in Stage 3 first.")
     else:
@@ -1530,9 +1525,9 @@ with tabs[3]:
                     "skip":   "⏭ Skip — placeholders only (fastest)",
                 }[x],
                 index=0,
-                help=("Web search uses Tavily — best for company logos, real charts, news photos. "
-                      "SVG uses Haiku — best for abstract conceptual diagrams (DAGs, flow charts). "
-                      "Skip = no images, instant build."),
+                help=("Web search — best for company logos, real charts, news photos. "
+                      "AI-generated diagrams — best for abstract concepts (flow charts, models). "
+                      "Skip — no images, fastest build."),
             )
             theme = st.selectbox(
                 "Background theme:",
@@ -1561,9 +1556,9 @@ with tabs[3]:
         with col_html:
             if st.button("Build HTML deck", type="primary", key="build_html"):
                 _spinner_label = {
-                    "search": "Building HTML (searching real images via Tavily)...",
-                    "svg":    "Building HTML (generating SVG diagrams via Haiku)...",
-                    "skip":   "Building HTML (skipping images — fast)...",
+                    "search": "Building deck (searching real images)...",
+                    "svg":    "Building deck (generating diagrams)...",
+                    "skip":   "Building deck...",
                 }[image_mode]
                 with st.spinner(_spinner_label):
                     path = build_html(st.session_state["outline"], f"output/{out_name}.html",
@@ -1582,10 +1577,10 @@ with tabs[3]:
                                 _html_text = Path(path).read_text(encoding="utf-8")
                                 if image_mode == "search":
                                     _n_hit = _html_text.count('class="img-wrapper"')
-                                    label = "real images via Tavily"
+                                    label = "real images"
                                 else:
                                     _n_hit = _html_text.count('class="svg-wrapper"')
-                                    label = "SVG diagrams"
+                                    label = "AI diagrams"
                                 _n_miss = _n_total - _n_hit
                                 if _n_miss > 0:
                                     st.warning(
@@ -1627,7 +1622,7 @@ with tabs[3]:
                     if not hw:
                         st.warning("No homework in the outline. Re-generate outline in Stage 3 with 'Include homework' on.")
                     else:
-                        with st.spinner("Generating Excel dataset (Haiku)..."):
+                        with st.spinner("Generating Excel dataset..."):
                             ds_path = generate_dataset(hw, f"output/{out_name}_dataset.xlsx", rows=int(dataset_rows))
                             st.session_state["dataset_path"] = ds_path
                             st.success(f"Dataset saved → {ds_path}")
@@ -1762,7 +1757,7 @@ with tabs[4]:
         "Generate a 60-90 second teaser video for the session you built in Stage 4. "
         "The script references the actual cases, frameworks, and homework from your outline — "
         "students see a real preview, not a generic course pitch. "
-        "AI script + Alice voiceover (ElevenLabs) + real images (Tavily) + ffmpeg → mp4. ~$0.05 per video."
+        "Use the video to introduce the session to your students before class — on Canvas, in an email, or on your course homepage."
     )
 
     if not st.session_state.get("outline"):
@@ -1806,21 +1801,16 @@ with tabs[4]:
         with v_col2:
             st.markdown(
                 "<div style='font-size:11pt;color:#666;margin-top:24px;'>"
-                "Voice: <b>Alice</b> · Engaging Educator (ElevenLabs)"
+                "Voice: <b>Alice</b> · Engaging Educator"
                 "</div>",
                 unsafe_allow_html=True,
             )
 
-        st.caption(
-            "Pipeline: Sonnet reads your outline → writes a 200-word session-specific narration + "
-            "8-12 scene storyboard → ElevenLabs Alice synthesizes voiceover → Tavily searches a real image "
-            "per scene in parallel → ffmpeg stitches everything into a 16:9 mp4."
-        )
 
         if st.button("🎬 Generate preview video", type="primary", key="gen_intro_video"):
             sess_title = _outline_obj.get("session_title", "Session")
             with st.spinner(
-                f"Building {video_duration}s preview — script → voiceover → images → ffmpeg... "
+                f"Building {video_duration}s preview video — this takes 1-2 minutes... "
                 "(this takes ~60-90 seconds total)"
             ):
                 try:
@@ -1918,17 +1908,13 @@ with tabs[5]:
                 help="Multiple-choice with instant feedback + explanation. Score saved in browser localStorage.",
             )
 
-        st.caption(
-            "Pipeline: Haiku reads your outline → extracts flash cards + quiz → renders standalone HTML "
-            "with interactive JS. ~$0.005 per study guide. Generates in ~10 seconds."
-        )
 
         if st.button("🎓 Generate Student Study Guide", type="primary", key="gen_study_guide"):
             sess_title = _outline_d.get("session_title", "Session")
             course_title = _syl_obj.get("course_title", "Course")
             safe_name = sess_title.lower().replace(" ", "_").replace(":", "").replace("/", "")[:40]
             sg_path = f"output/study_guide_{safe_name}.html"
-            with st.spinner("Generating flash cards + quiz (Haiku)... ~10 seconds"):
+            with st.spinner("Generating flash cards + quiz... about 10 seconds"):
                 try:
                     meta = generate_study_guide(
                         outline_json=st.session_state["outline"],
@@ -1977,8 +1963,7 @@ with tabs[5]:
 
 # ---------- Footer ----------
 st.markdown(
-    '<div class="app-footer">Built with Claude · '
-    'Outline · Sonnet 4.6   |   SVG · Haiku 4.5   |   Notes · Haiku 4.5</div>',
+    '<div class="app-footer">SlideGen · AI course decks for business school instructors</div>',
     unsafe_allow_html=True
 )
 
@@ -2025,7 +2010,7 @@ if "help_chat" not in st.session_state:
 
 with st.popover("💬 Help", use_container_width=False):
     st.markdown("**Ask me anything about how to use the app.**  \n"
-                "_Powered by Claude Haiku · 1-3 sentence answers._")
+                "_Quick guidance · 1-3 sentence answers._")
 
     # Chat history (scrollable container)
     chat_box = st.container(height=300, border=False)
