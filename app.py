@@ -490,6 +490,8 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
 .welcome-feature:nth-child(2) { animation-delay: 1.25s; }
 .welcome-feature:nth-child(3) { animation-delay: 1.4s; }
 .welcome-feature:nth-child(4) { animation-delay: 1.55s; }
+.welcome-feature:nth-child(5) { animation-delay: 1.7s; }
+.welcome-feature:nth-child(6) { animation-delay: 1.85s; }
 .welcome-feature:hover {
     background: rgba(13,148,136,0.20);
     border-color: rgba(94,234,212,0.55);
@@ -693,6 +695,16 @@ if not st.session_state["welcomed"]:
               '<span class="feat-icon">📤</span>'
               '<div class="feat-title">Export anywhere</div>'
               '<div class="feat-desc">HTML to present, PPTX to edit, PDF for handouts. One click each.</div>'
+            '</div>'
+            '<div class="welcome-feature">'
+              '<span class="feat-icon">🎬</span>'
+              '<div class="feat-title">Class intro video</div>'
+              '<div class="feat-desc">60-90 sec narrated teaser — get students excited before class. Share on Canvas or email.</div>'
+            '</div>'
+            '<div class="welcome-feature">'
+              '<span class="feat-icon">🎓</span>'
+              '<div class="feat-title">Student self-study</div>'
+              '<div class="feat-desc">Flash cards + self-quiz. Send the link — students review at their own pace.</div>'
             '</div>'
           '</div>'
           '<div class="welcome-cta-hint">↓ Click below when you\'re ready ↓</div>'
