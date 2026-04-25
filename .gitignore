@@ -39,3 +39,4 @@ Thumbs.db
 # ── Old/repaired files we don't want in git ──────────────
 *Repaired*
 *deck (*).pptx
+templates/
