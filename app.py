@@ -402,17 +402,27 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
 }
 .welcome-title {
     font-family: 'Source Serif Pro', Georgia, serif;
-    font-size: 92pt;
+    font-size: 110pt;
     font-weight: 700;
     line-height: 1.0;
-    letter-spacing: -2px;
-    margin: 0 0 24px 0;
+    letter-spacing: -3px;
+    margin: 0 0 8px 0;
     background: linear-gradient(120deg, #fff 0%, #99f6e4 25%, #10b981 50%, #99f6e4 75%, #fff 100%);
     background-size: 200% 100%;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     animation: shimmer 6s linear infinite, fadeUp 1s ease-out 0.5s backwards;
+}
+.welcome-subtitle {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 14pt;
+    color: #5eead4;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin: 0 0 36px 0;
+    opacity: 0;
+    animation: fadeUp 1s ease-out 0.8s forwards;
 }
 @keyframes shimmer {
     0%   { background-position: 200% 0%; }
@@ -655,7 +665,8 @@ if not st.session_state["welcomed"]:
             '</svg>'
           '</div>'
           '<div class="welcome-greeting">Hey, Professor! 👋</div>'
-          '<h1 class="welcome-title">Your AI Course Assistant</h1>'
+          '<h1 class="welcome-title">SlideGen</h1>'
+          '<div class="welcome-subtitle">Your AI course assistant</div>'
           '<p class="welcome-tagline">'
             'Turn a course description into a full <em>semester syllabus</em>, '
             'then craft <em>style-matched lectures</em> in your <em>own voice</em> — slide by slide. '
