@@ -1,0 +1,20 @@
+# Core
+streamlit>=1.32
+anthropic>=0.40
+python-dotenv>=1.0
+requests>=2.31
+
+# Slide generation
+python-pptx>=0.6.21
+pillow>=10.0
+pygments>=2.17
+
+# Web search & TTS
+tavily-python>=0.5
+
+# Excel datasets & activities
+openpyxl>=3.1
+pandas>=2.1
+
+# Style profile radar chart (Stage 2)
+plotly>=5.18

@@ -1,0 +1,41 @@
+# ── SECRETS — never commit ───────────────────────────────
+.env
+.env.local
+.streamlit/secrets.toml
+
+# ── Generated user content (per-deployment, not source) ──
+output/
+courses/
+syllabi/
+course_memory/
+style_profiles/
+usage_log.json
+*.pptx
+*.pdf
+*.xlsx
+*.mp4
+*.mp3
+# Keep the example template if it exists
+!templates/*.pptx
+
+# ── Python ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+venv/
+env/
+.venv/
+.pytest_cache/
+
+# ── OS / editors ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ── Old/repaired files we don't want in git ──────────────
+*Repaired*
+*deck (*).pptx
