@@ -300,8 +300,8 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
     position: relative;
     width: 100vw;
     margin-left: calc(-50vw + 50%);
-    min-height: 100vh;
-    padding: 80px 40px 100px;
+    min-height: auto;
+    padding: 24px 40px 18px;
     text-align: center;
     color: white;
     overflow: hidden;
@@ -358,8 +358,8 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
 /* AI orb — bigger + animated rings */
 .welcome-content { position: relative; z-index: 5; max-width: 900px; margin: 0 auto; }
 .ai-orb {
-    width: 220px; height: 220px;
-    margin: 30px auto 36px;
+    width: 130px; height: 130px;
+    margin: 0 auto 14px;
     position: relative;
 }
 .ai-orb .ring {
@@ -394,19 +394,19 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
 .welcome-greeting {
     font-family: 'Source Serif Pro', Georgia, serif;
     font-style: italic;
-    font-size: 26pt;
+    font-size: 18pt;
     color: #99f6e4;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     opacity: 0;
     animation: fadeDown 0.8s ease-out 0.3s forwards;
 }
 .welcome-title {
     font-family: 'Source Serif Pro', Georgia, serif;
-    font-size: 110pt;
+    font-size: 64pt;
     font-weight: 700;
     line-height: 1.0;
-    letter-spacing: -3px;
-    margin: 0 0 8px 0;
+    letter-spacing: -2px;
+    margin: 0 0 4px 0;
     background: linear-gradient(120deg, #fff 0%, #99f6e4 25%, #10b981 50%, #99f6e4 75%, #fff 100%);
     background-size: 200% 100%;
     -webkit-background-clip: text;
@@ -416,11 +416,11 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
 }
 .welcome-subtitle {
     font-family: ui-monospace, "SF Mono", Consolas, monospace;
-    font-size: 14pt;
+    font-size: 11pt;
     color: #5eead4;
-    letter-spacing: 6px;
+    letter-spacing: 5px;
     text-transform: uppercase;
-    margin: 0 0 36px 0;
+    margin: 0 0 16px 0;
     opacity: 0;
     animation: fadeUp 1s ease-out 0.8s forwards;
 }
@@ -432,20 +432,20 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
     /* Force-center & highlight as a glassy card */
     display: block;
     width: 100%;
-    max-width: 760px;
-    margin: 0 auto 48px !important;
-    padding: 24px 36px;
+    max-width: 720px;
+    margin: 0 auto 14px !important;
+    padding: 14px 24px;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(167,243,208,0.25);
-    border-radius: 18px;
+    border-radius: 14px;
     box-shadow:
-        0 0 50px rgba(13,148,136,0.25) inset,
-        0 12px 36px rgba(0,0,0,0.45);
+        0 0 40px rgba(13,148,136,0.20) inset,
+        0 8px 24px rgba(0,0,0,0.40);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    font-size: 17pt;
+    font-size: 13pt;
     color: rgba(255,255,255,0.92);
-    line-height: 1.7;
+    line-height: 1.55;
     text-align: center !important;
     text-wrap: balance;
     opacity: 0;
