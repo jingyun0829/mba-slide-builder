@@ -794,102 +794,128 @@ if not st.session_state["welcomed"]:
 #  User picks Quick / Full / Outline → mode is set → main app loads.
 # ═══════════════════════════════════════════════════════════════
 if not st.session_state.get("start_mode"):
+    # Override the entire app background to dark teal star-field for this page only.
+    # Since this CSS only renders when start_mode is None, switching to a mode
+    # naturally returns the app to its normal light theme on the next rerun.
     st.markdown("""
 <style>
-.path-page {
-  background: radial-gradient(ellipse 90% 70% at 50% 30%, rgba(13,148,136,0.45) 0%, transparent 60%),
-              linear-gradient(180deg, #042f2e 0%, #0a1f1f 60%, #021614 100%);
-  min-height: 100vh; padding: 60px 20px 40px; margin: -1.5rem -1rem 0;
-  position: relative; overflow: hidden;
+/* ── Force dark background on the WHOLE app for this page ── */
+[data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp, .main {
+  background: radial-gradient(ellipse 90% 60% at 50% 0%, rgba(13,148,136,0.55) 0%, transparent 55%),
+              linear-gradient(180deg, #042f2e 0%, #0a1f1f 50%, #021614 100%) !important;
+  background-attachment: fixed !important;
 }
-.path-page::before {
-  content:""; position:absolute; inset:0;
-  background-image: radial-gradient(2px 2px at 12% 18%, rgba(255,255,255,0.6), transparent 50%),
-                    radial-gradient(1px 1px at 78% 24%, rgba(167,243,208,0.7), transparent 50%),
-                    radial-gradient(1.5px 1.5px at 30% 80%, rgba(255,255,255,0.5), transparent 50%),
-                    radial-gradient(1px 1px at 88% 70%, rgba(94,234,212,0.6), transparent 50%),
-                    radial-gradient(1.5px 1.5px at 55% 50%, rgba(255,255,255,0.4), transparent 50%),
-                    radial-gradient(1px 1px at 5% 55%, rgba(167,243,208,0.5), transparent 50%);
-  pointer-events:none;
+.block-container {
+  background: transparent !important;
+  padding-top: 3rem !important;
+  max-width: 1280px !important;
 }
-.path-page-inner { max-width: 1200px; margin: 0 auto; position: relative; z-index: 2; text-align: center; }
+/* Star sprinkles overlay across the whole page */
+[data-testid="stAppViewContainer"]::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    radial-gradient(2px 2px at 12% 18%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1px 1px at 78% 24%, rgba(167,243,208,0.8), transparent 60%),
+    radial-gradient(1.5px 1.5px at 30% 78%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1px 1px at 88% 68%, rgba(94,234,212,0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 55% 50%, rgba(255,255,255,0.5), transparent 60%),
+    radial-gradient(1px 1px at 5% 55%, rgba(167,243,208,0.6), transparent 60%),
+    radial-gradient(2px 2px at 65% 88%, rgba(94,234,212,0.7), transparent 60%),
+    radial-gradient(1px 1px at 22% 38%, rgba(255,255,255,0.5), transparent 60%);
+}
+/* Hide the welcome screen footer if it leaks through */
+.app-footer { display: none !important; }
+
+/* ── Title block ── */
+.path-page-title {
+  text-align: center; margin: 0 auto 12px; position: relative; z-index: 2;
+}
 .path-q {
-  font-family:'Source Serif Pro',Georgia,serif; font-size:32pt; font-weight:700;
-  color:white; margin: 0 0 8px; letter-spacing:-0.5px;
-  background: linear-gradient(120deg,#fff 0%,#a7f3d0 50%,#fff 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  font-family:'Source Serif Pro',Georgia,serif; font-size:38pt; font-weight:700;
+  margin: 0 0 8px; letter-spacing:-1px;
+  background: linear-gradient(120deg, #fff 0%, #a7f3d0 50%, #fff 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
 }
 .path-sub {
-  font-size:13pt; color:rgba(167,243,208,0.85); margin: 0 0 48px;
-  font-family: ui-monospace, monospace; letter-spacing:2px; text-transform:uppercase;
+  font-size: 11pt; color: rgba(167,243,208,0.75); margin: 0 0 40px;
+  font-family: ui-monospace, monospace; letter-spacing: 3px; text-transform: uppercase;
 }
+
+/* ── Cards (sit on top of dark page bg) ── */
 .path-card-v2 {
-  background: rgba(6,43,41,0.65);
-  border: 2px solid rgba(94,234,212,0.18);
+  background: linear-gradient(180deg, rgba(6,43,41,0.85) 0%, rgba(2,22,20,0.90) 100%);
+  border: 2px solid rgba(94,234,212,0.25);
   border-radius: 22px;
-  padding: 36px 28px 24px; margin: 8px;
+  padding: 36px 28px 24px; margin: 8px 4px;
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-  color: white; min-height: 340px; text-align: left;
+  color: white; min-height: 320px; text-align: left;
   display: flex; flex-direction: column;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.50);
+  position: relative; z-index: 2;
 }
 .path-card-v2:hover {
-  background: rgba(13,148,136,0.32);
+  background: linear-gradient(180deg, rgba(13,148,136,0.40) 0%, rgba(6,43,41,0.85) 100%);
   border-color: rgba(94,234,212,0.85);
   transform: translateY(-8px);
-  box-shadow: 0 24px 60px rgba(13,148,136,0.40);
+  box-shadow: 0 24px 60px rgba(13,148,136,0.45);
 }
 .path-card-v2.featured {
-  border-color: rgba(94,234,212,0.55);
-  background: rgba(13,148,136,0.22);
-  box-shadow: 0 0 50px rgba(13,148,136,0.30) inset, 0 12px 36px rgba(0,0,0,0.40);
+  border-color: rgba(94,234,212,0.65);
+  background: linear-gradient(180deg, rgba(13,148,136,0.45) 0%, rgba(4,47,46,0.95) 100%);
+  box-shadow: 0 0 60px rgba(13,148,136,0.40), 0 16px 40px rgba(0,0,0,0.55);
 }
 .path-card-v2.featured::before {
-  content:"⭐ MOST POPULAR"; position:absolute; top:-12px; left:50%; transform:translateX(-50%);
-  background:linear-gradient(135deg,#0d9488,#5eead4); color:white;
-  font-size:9pt; font-weight:700; padding:5px 14px; border-radius:20px;
-  letter-spacing:1.5px; box-shadow:0 4px 14px rgba(13,148,136,0.5);
+  content: "⭐ MOST POPULAR"; position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  background: linear-gradient(135deg, #5eead4 0%, #0d9488 100%); color: white;
+  font-size: 9pt; font-weight: 700; padding: 5px 14px; border-radius: 20px;
+  letter-spacing: 1.5px; box-shadow: 0 4px 14px rgba(13,148,136,0.55);
+  white-space: nowrap;
 }
-.path-card-v2 .pc-icon {
-  font-size:46pt; line-height:1; margin-bottom:18px; display:block;
-}
+.path-card-v2 .pc-icon { font-size: 44pt; line-height: 1; margin-bottom: 16px; display: block; }
 .path-card-v2 .pc-title {
-  font-family:'Source Serif Pro',Georgia,serif; font-size:24pt; font-weight:700;
-  color:white; margin:0 0 4px;
+  font-family: 'Source Serif Pro', Georgia, serif; font-size: 22pt; font-weight: 700;
+  color: white; margin: 0 0 4px;
 }
 .path-card-v2 .pc-time {
-  font-family: ui-monospace, monospace; font-size:10pt;
-  color:#5eead4; letter-spacing:2px; text-transform:uppercase;
-  margin:0 0 18px;
+  font-family: ui-monospace, monospace; font-size: 10pt;
+  color: #5eead4; letter-spacing: 2px; text-transform: uppercase;
+  margin: 0 0 18px;
 }
 .path-card-v2 .pc-desc {
-  font-size:12pt; color:rgba(255,255,255,0.85); line-height:1.55;
-  flex-grow: 1; margin-bottom: 20px;
+  font-size: 11.5pt; color: rgba(255,255,255,0.88); line-height: 1.55;
+  flex-grow: 1;
 }
-.path-card-v2 .pc-desc strong { color:#a7f3d0; font-weight:600; }
-/* Style the Streamlit primary buttons inside this page */
-.path-page .stButton > button[kind="primary"] {
-  background: linear-gradient(135deg,#0d9488 0%,#0f766e 100%) !important;
-  border: 1px solid rgba(94,234,212,0.4) !important;
+.path-card-v2 .pc-desc strong { color: #a7f3d0; font-weight: 600; }
+
+/* ── Streamlit buttons inside this page get the gradient pill style ── */
+.stButton > button[kind="primary"] {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
+  border: 1px solid rgba(94,234,212,0.45) !important;
   color: white !important; font-weight: 600 !important;
-  border-radius: 999px !important; padding: 12px 28px !important;
-  box-shadow: 0 4px 14px rgba(13,148,136,0.35) !important;
+  border-radius: 999px !important; padding: 10px 24px !important;
+  box-shadow: 0 4px 14px rgba(13,148,136,0.40) !important;
   transition: all 0.2s !important;
 }
-.path-page .stButton > button[kind="primary"]:hover {
-  background: linear-gradient(135deg,#14b8a6 0%,#0d9488 100%) !important;
+.stButton > button[kind="primary"]:hover {
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 24px rgba(13,148,136,0.55) !important;
+  box-shadow: 0 8px 24px rgba(13,148,136,0.60) !important;
 }
-.path-back { text-align:center; margin-top: 36px; }
-.path-back a { color: rgba(255,255,255,0.5); font-size: 11pt;
-               text-decoration: none; cursor: pointer; }
-.path-back a:hover { color: #5eead4; }
+.stButton > button[kind="secondary"] {
+  background: transparent !important;
+  border: 1px solid rgba(167,243,208,0.30) !important;
+  color: rgba(255,255,255,0.7) !important;
+  border-radius: 999px !important;
+}
+.stButton > button[kind="secondary"]:hover {
+  border-color: rgba(94,234,212,0.7) !important; color: #5eead4 !important;
+}
 </style>
-<div class="path-page"><div class="path-page-inner">
+<div class="path-page-title">
   <div class="path-q">What would you like to do?</div>
   <div class="path-sub">Pick a path · you can switch any time</div>
-</div></div>
+</div>
 """, unsafe_allow_html=True)
 
     # 3 path cards rendered as columns
@@ -943,14 +969,14 @@ if not st.session_state.get("start_mode"):
             st.session_state["start_mode"] = "outline"
             st.rerun()
 
-    # Back link
-    st.markdown("<div style='text-align:center; margin-top:32px;'>", unsafe_allow_html=True)
+    # Back link (secondary style — softer than the Start CTAs)
+    st.markdown("<div style='margin-top:36px;'></div>", unsafe_allow_html=True)
     _, b_back, _ = st.columns([2, 1, 2])
     with b_back:
-        if st.button("← Back to welcome", key="back_to_welcome", use_container_width=True):
+        if st.button("← Back to welcome", key="back_to_welcome",
+                     use_container_width=True, type="secondary"):
             st.session_state["welcomed"] = False
             st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
 # ---------- Hero header ----------
