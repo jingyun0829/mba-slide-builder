@@ -30,6 +30,7 @@ from typing import Optional
 import streamlit as st
 
 USAGE_PATH = Path("usage_log.json")
+NAMES_PATH = Path("names_log.json")  # user_id → display name (set at login, optional)
 DEFAULT_INVITE_CODE = "BETA2026"
 DEFAULT_CAP = 3
 
@@ -93,6 +94,37 @@ def reset_user(user_id: str) -> None:
     log = _load_log()
     log.pop(user_id, None)
     _save_log(log)
+
+
+# ---------- name log on disk ----------
+
+def _load_names() -> dict:
+    if not NAMES_PATH.exists():
+        return {}
+    try:
+        return json.loads(NAMES_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_names(names: dict) -> None:
+    try:
+        NAMES_PATH.write_text(json.dumps(names, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def set_user_name(user_id: str, name: str) -> None:
+    name = (name or "").strip()
+    if not name:
+        return
+    names = _load_names()
+    names[user_id] = name[:60]  # cap length
+    _save_names(names)
+
+
+def get_user_name(user_id: str) -> str:
+    return _load_names().get(user_id, "")
 
 
 # ---------- session helpers ----------
@@ -199,6 +231,11 @@ def render_login_gate() -> bool:
                 placeholder="e.g., BETA2026",
                 help="Don't have one? Email dvora5018@gmail.com",
             )
+            display_name = st.text_input(
+                "Your name (optional)",
+                placeholder="e.g., Prof. Lee · Wharton",
+                help="So Dvora knows who's testing. Leave blank to stay anonymous.",
+            )
             submitted = st.form_submit_button("Sign in", type="primary",
                                               use_container_width=True)
             if submitted:
@@ -208,13 +245,17 @@ def render_login_gate() -> bool:
                 if admin_pw and code == admin_pw:
                     st.session_state["auth_ok"] = True
                     st.session_state["is_admin"] = True
-                    _ensure_user_id()
+                    uid = _ensure_user_id()
+                    if display_name.strip():
+                        set_user_name(uid, display_name.strip() + " (admin)")
                     st.success("Welcome, admin. Cap removed for this session.")
                     st.rerun()
                 # Normal path
                 elif code == get_invite_code():
                     st.session_state["auth_ok"] = True
-                    _ensure_user_id()
+                    uid = _ensure_user_id()
+                    if display_name.strip():
+                        set_user_name(uid, display_name.strip())
                     st.success(f"Welcome! You can build up to "
                                f"{get_max_decks()} decks. Loading...")
                     st.rerun()
@@ -246,3 +287,81 @@ def render_usage_badge() -> None:
         st.warning(f"⚠️ {used}/{cap} decks built. **1 build remaining.**")
     else:
         st.caption(f"📊 {used}/{cap} decks built · **{rem} remaining**.")
+
+
+def render_admin_panel() -> None:
+    """Admin-only usage dashboard. Shows who's using the app and how much.
+    Call right after render_usage_badge() in app.py."""
+    if not is_admin():
+        return
+
+    log = _load_log()
+    names = _load_names()
+    # Merge: every named user appears in admin view, even if they haven't built a deck yet
+    all_user_ids = set(log.keys()) | set(names.keys())
+    total_users = len(all_user_ids)
+    total_decks = sum(log.values()) if log else 0
+    cap = get_max_decks()
+    named_count = sum(1 for uid in all_user_ids if names.get(uid))
+
+    # Header line, always visible
+    header = (f"👑 Admin · **{total_users}** beta user{'s' if total_users != 1 else ''} "
+              f"({named_count} named) · **{total_decks}** deck{'s' if total_decks != 1 else ''} built")
+    with st.expander(header, expanded=False):
+        if not all_user_ids:
+            st.info("No users yet. Once people log in with the invite code, "
+                    "they'll show up here — with real names if they fill in the "
+                    "optional 'Your name' field at login.")
+            st.caption("⚠️ This list resets when Streamlit Cloud restarts the container "
+                       "(e.g., after a code push). For long-term tracking, use "
+                       "Manage app → Analytics.")
+            return
+
+        # Top metrics
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Beta users", total_users)
+        c2.metric("Total decks", total_decks)
+        avg = total_decks / total_users if total_users else 0
+        c3.metric("Avg per user", f"{avg:.1f}")
+
+        # Engagement summary
+        used_all = sum(1 for uid in all_user_ids if log.get(uid, 0) >= cap)
+        active = sum(1 for uid in all_user_ids if 1 <= log.get(uid, 0) < cap)
+        zero = total_users - used_all - active
+        st.caption(
+            f"**Engagement:** {used_all} hit the {cap}-deck cap · "
+            f"{active} are mid-quota · "
+            f"{zero} just registered (0 decks)"
+        )
+
+        st.markdown("**Per-user breakdown** (sorted by usage):")
+        # Sort: by deck count desc, then named ones first
+        sorted_users = sorted(
+            all_user_ids,
+            key=lambda uid: (-log.get(uid, 0), 0 if names.get(uid) else 1)
+        )
+        for uid in sorted_users:
+            count = log.get(uid, 0)
+            name = names.get(uid, "")
+            pct = min(1.0, count / cap) if cap else 0
+            display = name if name else f"(anonymous · {uid[:8]}…)"
+            label = f"**{display}** — {count}/{cap} decks"
+            if count >= cap:
+                label += " 🔥"
+            st.progress(pct, text=label)
+
+        st.markdown("---")
+        c_reset, c_caption = st.columns([1, 3])
+        with c_reset:
+            if st.button("🔄 Reset all quotas", key="admin_reset_all",
+                         help="Clears every user's deck counter. They'll get a fresh quota."):
+                USAGE_PATH.unlink(missing_ok=True)
+                st.success("All quotas reset.")
+                st.rerun()
+        with c_caption:
+            st.caption(
+                "⚠️ This counter lives in a file on Streamlit Cloud. "
+                "It **resets automatically** if the container restarts "
+                "(e.g., after a code push or scheduled reboot). "
+                "For long-term analytics, see Manage app → Analytics."
+            )

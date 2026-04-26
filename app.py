@@ -766,6 +766,7 @@ st.markdown(_pills_html, unsafe_allow_html=True)
 
 # ── Per-user quota badge (beta-mode only) ──
 _auth.render_usage_badge()
+_auth.render_admin_panel()
 
 tabs = st.tabs(["1. Course","2. Teaching style","3. Session outline","4. Deck","5. 🎬 Intro video","6. 🎓 Study guide"])
 

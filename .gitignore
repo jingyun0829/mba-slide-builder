@@ -10,6 +10,7 @@ syllabi/
 course_memory/
 style_profiles/
 usage_log.json
+names_log.json
 *.pptx
 *.pdf
 *.xlsx
