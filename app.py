@@ -766,7 +766,16 @@ st.markdown(_pills_html, unsafe_allow_html=True)
 
 # ── Per-user quota badge (beta-mode only) ──
 _auth.render_usage_badge()
-_auth.render_admin_panel()
+# Admin panel — wrapped defensively so any bug here doesn't crash the whole app
+try:
+    _auth.render_admin_panel()
+except AttributeError:
+    # Older deployed auth.py without render_admin_panel — silently skip
+    pass
+except Exception as _e:
+    if _auth.is_admin():
+        st.warning(f"⚠️ Admin panel unavailable: `{_e}`. Reboot the app from "
+                   "Manage app → ⋮ → Reboot.")
 
 tabs = st.tabs(["1. Course","2. Teaching style","3. Session outline","4. Deck","5. 🎬 Intro video","6. 🎓 Study guide"])
 
