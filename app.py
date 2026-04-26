@@ -1991,6 +1991,9 @@ if OUTLINE_IDX is not None:
     if st.session_state["style_profile"]:
         avg = (st.session_state["style_profile"].get("quantitative") or {}).get("avg_slides_per_lecture")
         if avg: default_slides = int(round(float(avg)))
+    # Clamp into the valid widget range so we never trip StreamlitValueAboveMaxError
+    # (some uploaded teaching decks have 80+ slides per session)
+    default_slides = max(10, min(100, default_slides))
 
     c1, c2 = st.columns([2, 1])
     with c1:
@@ -2014,7 +2017,7 @@ if OUTLINE_IDX is not None:
         latest_only = st.checkbox("📰 Latest cases only (last 6 mo.)", value=False,
             help="When on, searches the last 6 months only — best for fast-moving topics like AI, tech, current macro. Default is 18 months.")
         st.markdown("**Deck content**")
-        target_slides = st.number_input("Target slide count", min_value=10, max_value=80, value=default_slides, step=1)
+        target_slides = st.number_input("Target slide count", min_value=10, max_value=100, value=default_slides, step=1)
         include_code = st.checkbox("Include code (Step 1/2/3)", value=False)
         include_homework = st.checkbox("Include homework", value=False)
         include_activity = st.checkbox("Include in-class activity (10-min warm-up)", value=False,
