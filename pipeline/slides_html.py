@@ -41,8 +41,26 @@ def _line_to_html(line):
 
 def _render_title_slide(session_title, duration):
     return f'''<section class="slide title-slide" data-type="title">
-  <h1>{_esc(session_title)}</h1>
-  <div class="subtitle">{_esc(duration)} min</div>
+  <div class="title-decor-orb"></div>
+  <div class="title-decor-orb title-decor-orb-2"></div>
+  <div class="title-stars">
+    <span style="top:12%;left:8%;animation-delay:0s;"></span>
+    <span style="top:18%;left:88%;animation-delay:0.4s;"></span>
+    <span style="top:34%;left:14%;animation-delay:0.9s;"></span>
+    <span style="top:42%;left:78%;animation-delay:1.3s;"></span>
+    <span style="top:60%;left:22%;animation-delay:1.7s;"></span>
+    <span style="top:72%;left:84%;animation-delay:0.6s;"></span>
+    <span style="top:80%;left:42%;animation-delay:2.1s;"></span>
+    <span style="top:25%;left:50%;animation-delay:2.5s;"></span>
+    <span style="top:88%;left:62%;animation-delay:1.0s;"></span>
+    <span style="top:56%;left:55%;animation-delay:0.2s;"></span>
+  </div>
+  <div class="title-content">
+    <div class="title-eyebrow">Lecture · {_esc(duration)} min</div>
+    <h1>{_esc(session_title)}</h1>
+    <div class="title-accent-line"></div>
+    <div class="subtitle">SlideGen</div>
+  </div>
 </section>'''
 
 def _render_content_slide(slide):
@@ -560,30 +578,88 @@ html,body{margin:0;padding:0;background:#222;height:100%;font-family:-apple-syst
 .slide[data-type="summary"]{
   background:linear-gradient(135deg,__SLIDE_BG__ 0%,__S_TINT__ 100%);
 }
-.title-slide{text-align:center;display:none;flex-direction:column;justify-content:center;align-items:center;
+/* ═══ TITLE SLIDE — full-bleed dark space, true center, animated orbs ═══ */
+.title-slide{
+  text-align:center; display:none; flex-direction:column;
+  justify-content:center; align-items:center;
   background:#0a1f1f !important;
   background-image:
-    radial-gradient(ellipse 80% 60% at 20% 20%, rgba(13,148,136,0.55) 0%, transparent 60%),
-    radial-gradient(ellipse 70% 80% at 80% 30%, rgba(94,234,212,0.30) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 20% 20%, rgba(13,148,136,0.50) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 80% at 80% 30%, rgba(94,234,212,0.28) 0%, transparent 55%),
     radial-gradient(ellipse 60% 50% at 50% 90%, rgba(4,47,46,0.55) 0%, transparent 60%),
     linear-gradient(180deg,#062b29 0%,#0a1f1f 50%,#021614 100%) !important;
-  color:white;
-  position:relative;
+  color:white; position:relative; overflow:hidden;
+  padding:0 !important;
 }
 .title-slide.active{display:flex;}
 .title-slide::before{
-  content:"";position:absolute;top:60px;left:60px;
-  width:60px;height:5px;background:linear-gradient(90deg,#5eead4,#0d9488);
+  content:""; position:absolute; top:48px; left:50%; transform:translateX(-50%);
+  width:100px; height:5px;
+  background:linear-gradient(90deg,#5eead4,#0d9488);
   border-radius:3px;
+  box-shadow:0 0 20px rgba(94,234,212,0.6);
+}
+/* ── Decorative glowing orbs (drift slowly, blur heavy) ── */
+.title-slide .title-decor-orb{
+  position:absolute; border-radius:50%;
+  width:520px; height:520px;
+  background:radial-gradient(circle, rgba(13,148,136,0.55) 0%, rgba(13,148,136,0) 65%);
+  top:-180px; left:-160px;
+  filter:blur(40px);
+  animation: titleDrift1 18s ease-in-out infinite;
+  z-index:1;
+}
+.title-slide .title-decor-orb-2{
+  width:420px; height:420px;
+  background:radial-gradient(circle, rgba(94,234,212,0.40) 0%, rgba(94,234,212,0) 65%);
+  top:auto; left:auto; bottom:-150px; right:-140px;
+  filter:blur(50px);
+  animation: titleDrift2 22s ease-in-out infinite;
+}
+@keyframes titleDrift1 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(120px,80px) scale(1.1);} }
+@keyframes titleDrift2 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-90px,-60px) scale(1.15);} }
+/* ── Twinkling stars sprinkled across the slide ── */
+.title-slide .title-stars{position:absolute; inset:0; pointer-events:none; z-index:2;}
+.title-slide .title-stars span{
+  position:absolute; width:3px; height:3px; border-radius:50%;
+  background:white; box-shadow:0 0 12px rgba(255,255,255,0.85);
+  animation: titleTwinkle 3s ease-in-out infinite;
+}
+@keyframes titleTwinkle { 0%,100%{opacity:0.3;transform:scale(0.6);} 50%{opacity:1;transform:scale(1.6);} }
+/* ── Centered content stack ── */
+.title-slide .title-content{
+  position:relative; z-index:3;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  width:100%; padding:0 80px;
+}
+.title-slide .title-eyebrow{
+  font-family:ui-monospace,"SF Mono",Consolas,monospace;
+  font-size:13pt; letter-spacing:5px; text-transform:uppercase;
+  color:#5eead4; margin-bottom:28px;
+  opacity:0.85;
 }
 .title-slide h1{
   font-family:'Source Serif Pro',Georgia,serif;
-  font-size:62pt;font-weight:700;margin:0 0 24px;line-height:1.1;max-width:80%;
-  background:linear-gradient(135deg,#fff 0%,#a7f3d0 50%,#5eead4 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  letter-spacing:-1.5px;
+  font-size:72pt; font-weight:700; line-height:1.05;
+  margin:0; max-width:1000px;
+  background:linear-gradient(120deg,#fff 0%,#a7f3d0 35%,#5eead4 65%,#fff 100%);
+  background-size:200% 100%;
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  letter-spacing:-2px;
+  animation: titleShimmer 8s linear infinite;
 }
-.title-slide .subtitle{font-size:22pt;color:rgba(255,255,255,0.7);font-family:ui-monospace,monospace;letter-spacing:1px;}
+@keyframes titleShimmer { 0%{background-position:200% 0%;} 100%{background-position:-200% 0%;} }
+.title-slide .title-accent-line{
+  margin:36px auto 24px;
+  width:140px; height:3px; border-radius:2px;
+  background:linear-gradient(90deg, transparent 0%, #5eead4 50%, transparent 100%);
+}
+.title-slide .subtitle{
+  font-size:13pt; color:rgba(167,243,208,0.7);
+  font-family:ui-monospace,"SF Mono",Consolas,monospace;
+  letter-spacing:6px; text-transform:uppercase;
+  font-weight:600;
+}
 .section-divider{display:none;flex-direction:column;justify-content:center;align-items:center;
   background:linear-gradient(135deg,var(--teal) 0%,var(--teal-dark) 100%) !important;
   background-image:
