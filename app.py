@@ -768,61 +768,189 @@ if not st.session_state["welcomed"]:
               '<div class="feat-desc">Flash cards + self-quiz. Send the link — students review at their own pace.</div>'
             '</div>'
           '</div>'
-          '<div class="welcome-cta-hint">↓ Pick how you want to start ↓</div>'
+          '<div class="welcome-cta-hint">↓ Click below when you\'re ready ↓</div>'
         '</div>'
         '</div>'
     )
     st.markdown(_welcome_html, unsafe_allow_html=True)
 
-    # ── Path picker — 3 starting points ─────────────────────
-    pc1, pc2, pc3 = st.columns(3, gap="small")
-    with pc1:
-        st.markdown(
-            '<div class="path-card">'
-            '<div class="path-icon">📝</div>'
-            '<div class="path-title">One-off lecture</div>'
-            '<div class="path-time">~5 minutes</div>'
-            '<div class="path-desc">A guest talk, workshop, or single class. Type a topic, optionally upload past slides for style match, get a deck. <strong>No course setup needed.</strong></div>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-        if st.button("Start →", key="start_quick", use_container_width=True, type="primary"):
+    # Single CTA — restored. Picks the path on the NEXT screen.
+    _, c_btn, _ = st.columns([1, 1, 1])
+    with c_btn:
+        if st.button("Let's get started  →", type="primary", key="welcome_cta",
+                     use_container_width=True):
             st.session_state["welcomed"] = True
-            st.session_state["start_mode"] = "quick"
             st.rerun()
-    with pc2:
-        st.markdown(
-            '<div class="path-card path-card-featured">'
-            '<div class="path-icon">📚</div>'
-            '<div class="path-title">Full course</div>'
-            '<div class="path-time">~30 minutes setup</div>'
-            '<div class="path-desc">A semester-long course. Generate a syllabus, analyze your style from past decks, then build week-by-week with memory across sessions. <strong>The full SlideGen experience.</strong></div>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-        if st.button("Start →", key="start_full", use_container_width=True, type="primary"):
-            st.session_state["welcomed"] = True
-            st.session_state["start_mode"] = "full"
-            st.rerun()
-    with pc3:
-        st.markdown(
-            '<div class="path-card">'
-            '<div class="path-icon">🎯</div>'
-            '<div class="path-title">Outline only</div>'
-            '<div class="path-time">~2 minutes</div>'
-            '<div class="path-desc">Just want a structured outline to write yourself? Type a topic, get a slide-by-slide plan as text. <strong>No deck — just the skeleton.</strong></div>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-        if st.button("Start →", key="start_outline", use_container_width=True, type="primary"):
-            st.session_state["welcomed"] = True
-            st.session_state["start_mode"] = "outline"
-            st.rerun()
-
     st.markdown(
         '<div class="app-footer" style="margin-top:32px;">Made for business school instructors</div>',
         unsafe_allow_html=True
     )
+    st.stop()
+
+
+# ═══════════════════════════════════════════════════════════════
+#  PAGE 2 — Path picker (full-screen, dark teal theme)
+#  Shown after "Let's get started" and BEFORE the main app.
+#  User picks Quick / Full / Outline → mode is set → main app loads.
+# ═══════════════════════════════════════════════════════════════
+if not st.session_state.get("start_mode"):
+    st.markdown("""
+<style>
+.path-page {
+  background: radial-gradient(ellipse 90% 70% at 50% 30%, rgba(13,148,136,0.45) 0%, transparent 60%),
+              linear-gradient(180deg, #042f2e 0%, #0a1f1f 60%, #021614 100%);
+  min-height: 100vh; padding: 60px 20px 40px; margin: -1.5rem -1rem 0;
+  position: relative; overflow: hidden;
+}
+.path-page::before {
+  content:""; position:absolute; inset:0;
+  background-image: radial-gradient(2px 2px at 12% 18%, rgba(255,255,255,0.6), transparent 50%),
+                    radial-gradient(1px 1px at 78% 24%, rgba(167,243,208,0.7), transparent 50%),
+                    radial-gradient(1.5px 1.5px at 30% 80%, rgba(255,255,255,0.5), transparent 50%),
+                    radial-gradient(1px 1px at 88% 70%, rgba(94,234,212,0.6), transparent 50%),
+                    radial-gradient(1.5px 1.5px at 55% 50%, rgba(255,255,255,0.4), transparent 50%),
+                    radial-gradient(1px 1px at 5% 55%, rgba(167,243,208,0.5), transparent 50%);
+  pointer-events:none;
+}
+.path-page-inner { max-width: 1200px; margin: 0 auto; position: relative; z-index: 2; text-align: center; }
+.path-q {
+  font-family:'Source Serif Pro',Georgia,serif; font-size:32pt; font-weight:700;
+  color:white; margin: 0 0 8px; letter-spacing:-0.5px;
+  background: linear-gradient(120deg,#fff 0%,#a7f3d0 50%,#fff 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.path-sub {
+  font-size:13pt; color:rgba(167,243,208,0.85); margin: 0 0 48px;
+  font-family: ui-monospace, monospace; letter-spacing:2px; text-transform:uppercase;
+}
+.path-card-v2 {
+  background: rgba(6,43,41,0.65);
+  border: 2px solid rgba(94,234,212,0.18);
+  border-radius: 22px;
+  padding: 36px 28px 24px; margin: 8px;
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  color: white; min-height: 340px; text-align: left;
+  display: flex; flex-direction: column;
+}
+.path-card-v2:hover {
+  background: rgba(13,148,136,0.32);
+  border-color: rgba(94,234,212,0.85);
+  transform: translateY(-8px);
+  box-shadow: 0 24px 60px rgba(13,148,136,0.40);
+}
+.path-card-v2.featured {
+  border-color: rgba(94,234,212,0.55);
+  background: rgba(13,148,136,0.22);
+  box-shadow: 0 0 50px rgba(13,148,136,0.30) inset, 0 12px 36px rgba(0,0,0,0.40);
+}
+.path-card-v2.featured::before {
+  content:"⭐ MOST POPULAR"; position:absolute; top:-12px; left:50%; transform:translateX(-50%);
+  background:linear-gradient(135deg,#0d9488,#5eead4); color:white;
+  font-size:9pt; font-weight:700; padding:5px 14px; border-radius:20px;
+  letter-spacing:1.5px; box-shadow:0 4px 14px rgba(13,148,136,0.5);
+}
+.path-card-v2 .pc-icon {
+  font-size:46pt; line-height:1; margin-bottom:18px; display:block;
+}
+.path-card-v2 .pc-title {
+  font-family:'Source Serif Pro',Georgia,serif; font-size:24pt; font-weight:700;
+  color:white; margin:0 0 4px;
+}
+.path-card-v2 .pc-time {
+  font-family: ui-monospace, monospace; font-size:10pt;
+  color:#5eead4; letter-spacing:2px; text-transform:uppercase;
+  margin:0 0 18px;
+}
+.path-card-v2 .pc-desc {
+  font-size:12pt; color:rgba(255,255,255,0.85); line-height:1.55;
+  flex-grow: 1; margin-bottom: 20px;
+}
+.path-card-v2 .pc-desc strong { color:#a7f3d0; font-weight:600; }
+/* Style the Streamlit primary buttons inside this page */
+.path-page .stButton > button[kind="primary"] {
+  background: linear-gradient(135deg,#0d9488 0%,#0f766e 100%) !important;
+  border: 1px solid rgba(94,234,212,0.4) !important;
+  color: white !important; font-weight: 600 !important;
+  border-radius: 999px !important; padding: 12px 28px !important;
+  box-shadow: 0 4px 14px rgba(13,148,136,0.35) !important;
+  transition: all 0.2s !important;
+}
+.path-page .stButton > button[kind="primary"]:hover {
+  background: linear-gradient(135deg,#14b8a6 0%,#0d9488 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(13,148,136,0.55) !important;
+}
+.path-back { text-align:center; margin-top: 36px; }
+.path-back a { color: rgba(255,255,255,0.5); font-size: 11pt;
+               text-decoration: none; cursor: pointer; }
+.path-back a:hover { color: #5eead4; }
+</style>
+<div class="path-page"><div class="path-page-inner">
+  <div class="path-q">What would you like to do?</div>
+  <div class="path-sub">Pick a path · you can switch any time</div>
+</div></div>
+""", unsafe_allow_html=True)
+
+    # 3 path cards rendered as columns
+    pc1, pc2, pc3 = st.columns(3, gap="medium")
+    with pc1:
+        st.markdown(
+            '<div class="path-card-v2">'
+            '<span class="pc-icon">📝</span>'
+            '<div class="pc-title">One-off lecture</div>'
+            '<div class="pc-time">~5 minutes</div>'
+            '<div class="pc-desc">A guest talk, workshop, or single class. '
+            'Type a topic, optionally upload past slides for style match, get a deck. '
+            '<br><br><strong>No course setup needed.</strong></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Start →", key="start_quick", use_container_width=True, type="primary"):
+            st.session_state["start_mode"] = "quick"
+            st.rerun()
+
+    with pc2:
+        st.markdown(
+            '<div class="path-card-v2 featured">'
+            '<span class="pc-icon">📚</span>'
+            '<div class="pc-title">Full course</div>'
+            '<div class="pc-time">~30 minutes setup</div>'
+            '<div class="pc-desc">A semester-long course. Generate a syllabus, '
+            'analyze your style from past decks, then build week-by-week with '
+            'memory across sessions. '
+            '<br><br><strong>The full SlideGen experience.</strong></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Start →", key="start_full", use_container_width=True, type="primary"):
+            st.session_state["start_mode"] = "full"
+            st.rerun()
+
+    with pc3:
+        st.markdown(
+            '<div class="path-card-v2">'
+            '<span class="pc-icon">🎯</span>'
+            '<div class="pc-title">Outline only</div>'
+            '<div class="pc-time">~2 minutes</div>'
+            '<div class="pc-desc">Just want a structured outline to write yourself? '
+            'Type a topic, get a slide-by-slide plan as text. '
+            '<br><br><strong>No deck — just the skeleton.</strong></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Start →", key="start_outline", use_container_width=True, type="primary"):
+            st.session_state["start_mode"] = "outline"
+            st.rerun()
+
+    # Back link
+    st.markdown("<div style='text-align:center; margin-top:32px;'>", unsafe_allow_html=True)
+    _, b_back, _ = st.columns([2, 1, 2])
+    with b_back:
+        if st.button("← Back to welcome", key="back_to_welcome", use_container_width=True):
+            st.session_state["welcomed"] = False
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
 # ---------- Hero header ----------
