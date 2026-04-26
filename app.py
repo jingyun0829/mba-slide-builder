@@ -1173,6 +1173,98 @@ with tabs[0]:
             "Want to edit slides before exporting? Switch to **Stage 3** — your outline is already loaded there."
         )
 
+    # ════════════════════════════════════════════════════════════
+    #  ✨ "What's next?" — generate intro video + study guide
+    #  inline, without leaving the Quick deck tab. Both work from
+    #  the outline JSON, so they're available in BOTH outline-only
+    #  and full-deck modes.
+    # ════════════════════════════════════════════════════════════
+    if st.session_state.get("outline"):
+        try:
+            _q_outline_obj = json.loads(st.session_state["outline"])
+        except Exception:
+            _q_outline_obj = None
+
+        if _q_outline_obj:
+            st.markdown("---")
+            st.markdown("### ✨ What's next? Build more from this same outline:")
+            st.caption(
+                "These both use the outline you just created — no extra setup. "
+                "For more options (voice, length, # of cards, etc.) use the dedicated **Stage 5** and **Stage 6** tabs."
+            )
+
+            nx1, nx2 = st.columns(2)
+
+            # ── 🎬 Intro Video ──
+            with nx1:
+                st.markdown("**🎬 Class intro video**")
+                st.caption("90-second narrated teaser for students. ~1-2 min to build.")
+                if st.button("Generate intro video", key="q_gen_video", use_container_width=True):
+                    sess_title = _q_outline_obj.get("session_title", q_topic or "Session")
+                    safe = "".join(c if c.isalnum() else "_" for c in sess_title[:40]).strip("_").lower()
+                    out_path = f"output/quick_video_{safe}.mp4"
+                    with st.spinner("Building 90s preview video — this takes 1-2 minutes..."):
+                        try:
+                            from pipeline.video_generator import generate_intro_video
+                            meta = generate_intro_video(
+                                outline_json=st.session_state["outline"],
+                                output_path=out_path,
+                                duration_seconds=90,
+                            )
+                            st.session_state["intro_video_path"] = meta["path"]
+                            st.session_state["intro_video_meta"] = meta
+                            st.success(
+                                f"✓ Video ready · {meta['duration_seconds']:.0f}s · "
+                                f"{meta['scene_count']} scenes"
+                            )
+                        except Exception as e:
+                            st.error(f"Video generation failed: {e}")
+
+                if (st.session_state.get("intro_video_path")
+                        and Path(st.session_state["intro_video_path"]).exists()):
+                    st.video(st.session_state["intro_video_path"])
+                    with open(st.session_state["intro_video_path"], "rb") as f:
+                        st.download_button(
+                            "⬇ Download video (.mp4)", f,
+                            file_name=Path(st.session_state["intro_video_path"]).name,
+                            mime="video/mp4", use_container_width=True,
+                        )
+
+            # ── 🎓 Study Guide ──
+            with nx2:
+                st.markdown("**🎓 Student study guide**")
+                st.caption("Flash cards + self-quiz HTML for students. ~10 sec.")
+                if st.button("Generate study guide", key="q_gen_study", use_container_width=True):
+                    sess_title = _q_outline_obj.get("session_title", q_topic or "Session")
+                    safe = "".join(c if c.isalnum() else "_" for c in sess_title[:40]).strip("_").lower()
+                    sg_out = f"output/quick_studyguide_{safe}.html"
+                    with st.spinner("Generating flash cards + quiz... about 10 seconds"):
+                        try:
+                            sg_meta = generate_study_guide(
+                                outline_json=st.session_state["outline"],
+                                course_title=q_module.replace("_", " ").title() if q_module else "Course",
+                                session_title=sess_title,
+                                output_path=sg_out,
+                            )
+                            st.session_state["study_guide_path"] = sg_meta["path"]
+                            st.session_state["study_guide_meta"] = sg_meta
+                            st.success(
+                                f"✓ {sg_meta['n_flash_cards']} flash cards · "
+                                f"{sg_meta['n_quiz_questions']} quiz questions"
+                            )
+                        except Exception as e:
+                            st.error(f"Study guide failed: {e}")
+
+                if (st.session_state.get("study_guide_path")
+                        and Path(st.session_state["study_guide_path"]).exists()):
+                    with open(st.session_state["study_guide_path"], "rb") as f:
+                        st.download_button(
+                            "⬇ Download study guide (.html)", f,
+                            file_name=Path(st.session_state["study_guide_path"]).name,
+                            mime="text/html", use_container_width=True,
+                        )
+                    st.caption("📤 Send this .html to students — works offline, scores save in their browser.")
+
 
 with tabs[1]:
     st.subheader("Stage 1 — Course → Syllabus")
