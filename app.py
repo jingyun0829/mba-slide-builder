@@ -298,16 +298,13 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
 
 .welcome-wrap {
     position: relative;
-    width: 100vw;
-    margin-left: calc(-50vw + 50%);
+    /* No more 100vw breakout / overflow:hidden — those create a visible
+       boundary where the full-page bg gets clipped. Just be a plain block. */
+    width: 100%;
     min-height: auto;
-    padding: 24px 40px 18px;
+    padding: 24px 20px 18px;
     text-align: center;
     color: white;
-    overflow: hidden;
-    isolation: isolate;
-    /* Transparent — let the full-page starfield + gradient show through.
-       This removes the visible seam between hero and content below. */
     background: transparent;
 }
 @keyframes meshShift {
@@ -733,25 +730,14 @@ header[data-testid="stHeader"] { background: transparent !important; }
         unsafe_allow_html=True,
     )
 
-    # Keep the existing _star_html (smaller set) for the inner welcome-wrap stars
-    _star_html = "".join(
-        f'<span style="top:{_random.randint(2, 96)}%; left:{_random.randint(2, 98)}%; '
-        f'animation-delay:{_random.uniform(0, 3):.1f}s; '
-        f'opacity:{_random.uniform(0.3, 1):.2f}; '
-        f'transform:scale({_random.uniform(0.5, 1.6):.2f});"></span>'
-        for _ in range(70)
-    )
-
     # NOTE: keep this HTML on a single block with NO blank lines.
     # Streamlit's markdown parser breaks out of "raw HTML mode" on blank lines
     # and starts treating subsequent indented lines as code blocks.
+    # Inner blobs / stars REMOVED — the .fullpage-stars layer above already
+    # covers the entire viewport so we don't need duplicates here, and they
+    # were causing a visible horizontal seam where overflow:hidden clipped them.
     _welcome_html = (
         '<div class="welcome-wrap">'
-        '<div class="blob blob-1"></div>'
-        '<div class="blob blob-2"></div>'
-        '<div class="blob blob-3"></div>'
-        '<div class="blob blob-4"></div>'
-        f'<div class="stars">{_star_html}</div>'
         '<div class="welcome-content">'
           '<div class="ai-orb">'
             '<div class="ring ring-1"></div>'
