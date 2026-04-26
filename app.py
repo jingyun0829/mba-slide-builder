@@ -647,6 +647,38 @@ st.session_state.setdefault("welcomed", False)
 
 # ---------- Welcome / landing page (shown until user clicks "Get started") ----------
 if not st.session_state["welcomed"]:
+    # Apply dark teal background to the WHOLE app (not just hero div).
+    # This way the button and feature cards below the hero stay on dark bg
+    # so the white text remains visible. CSS naturally stops applying when
+    # welcomed=True on the next rerun.
+    st.markdown("""
+<style>
+[data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp, .main {
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(13,148,136,0.45) 0%, transparent 55%),
+    linear-gradient(180deg, #060606 0%, #062b29 50%, #050505 100%) !important;
+  background-attachment: fixed !important;
+}
+.block-container { background: transparent !important; padding-top: 0 !important; }
+header[data-testid="stHeader"] { background: transparent !important; }
+/* Make the Get-started button stand out on dark bg */
+.stButton > button[kind="primary"] {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
+  border: 1px solid rgba(94,234,212,0.45) !important;
+  color: white !important; font-weight: 600 !important;
+  border-radius: 999px !important; padding: 12px 32px !important;
+  font-size: 14pt !important;
+  box-shadow: 0 6px 20px rgba(13,148,136,0.45) !important;
+  transition: all 0.2s !important;
+}
+.stButton > button[kind="primary"]:hover {
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 28px rgba(13,148,136,0.60) !important;
+}
+</style>
+    """, unsafe_allow_html=True)
+
     # Generate scattered star positions for the particle field
     import random as _random
     _random.seed(42)
