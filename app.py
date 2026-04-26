@@ -306,13 +306,9 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
     color: white;
     overflow: hidden;
     isolation: isolate;
-    background:
-        radial-gradient(ellipse 80% 60% at 20% 20%, rgba(13,148,136,0.35) 0%, transparent 60%),
-        radial-gradient(ellipse 70% 80% at 80% 30%, rgba(20,120,90,0.30) 0%, transparent 55%),
-        radial-gradient(ellipse 60% 50% at 50% 90%, rgba(0,80,70,0.45) 0%, transparent 60%),
-        linear-gradient(180deg, #060606 0%, #062b29 50%, #050505 100%);
-    background-size: 100% 100%;
-    animation: meshShift 18s ease-in-out infinite;
+    /* Transparent — let the full-page starfield + gradient show through.
+       This removes the visible seam between hero and content below. */
+    background: transparent;
 }
 @keyframes meshShift {
     0%, 100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0 0; }
