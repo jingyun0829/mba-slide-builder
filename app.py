@@ -777,9 +777,199 @@ except Exception as _e:
         st.warning(f"⚠️ Admin panel unavailable: `{_e}`. Reboot the app from "
                    "Manage app → ⋮ → Reboot.")
 
-tabs = st.tabs(["1. Course","2. Teaching style","3. Session outline","4. Deck","5. 🎬 Intro video","6. 🎓 Study guide"])
+tabs = st.tabs(["⚡ Quick deck","1. Course","2. Teaching style","3. Session outline","4. Deck","5. 🎬 Intro video","6. 🎓 Study guide"])
 
+# ═══════════════════════════════════════════════════════════════
+#  ⚡ QUICK DECK — single-topic, no-syllabus express path
+#  Skips Stage 1-3. One topic in, one deck out. Optional pptx upload
+#  for instant style match. Counts as 1 toward the user's quota.
+# ═══════════════════════════════════════════════════════════════
 with tabs[0]:
+    st.subheader("⚡ Quick deck — one topic, no setup")
+    st.markdown(
+        "Just want a deck on a single topic? Skip the syllabus / course-memory flow. "
+        "Type your topic, optionally upload past slides for style matching, and click build. "
+        "**Best for**: guest lectures, workshops, one-off sessions, or just testing the tool."
+    )
+
+    qc1, qc2 = st.columns([2, 1])
+    with qc1:
+        q_topic = st.text_input(
+            "Topic *",
+            placeholder="e.g., Probability for Business Uncertainty",
+            key="q_topic",
+        )
+        q_objectives = st.text_area(
+            "Learning objectives (one per line) *",
+            height=120,
+            placeholder="Students will be able to:\n• Apply Bayes' rule to business decisions\n• Distinguish frequentist vs Bayesian thinking\n• Use probability trees for sequential decisions",
+            key="q_objectives",
+        )
+        q_notes = st.text_area(
+            "Rough notes (optional)",
+            height=80,
+            placeholder="Anything specific you want covered: a case, a story, a particular angle…",
+            key="q_notes",
+        )
+    with qc2:
+        q_module = st.selectbox("Subject area", MODULE_AREAS, key="q_module")
+        q_audience = st.selectbox(
+            "Audience level",
+            options=list(AUDIENCE_LEVELS.keys()),
+            format_func=lambda k: f"{k.title()} — {AUDIENCE_LEVELS[k][:40]}…",
+            index=1, key="q_audience",
+        )
+        q_duration = st.slider("Class duration (min)", 30, 180, 75, 15, key="q_duration")
+        q_target_slides = st.number_input("Target slides", 8, 40, 18, key="q_target_slides")
+        q_include_code = st.checkbox("Include Python code", value=False, key="q_include_code")
+        q_include_homework = st.checkbox("Include homework", value=False, key="q_include_homework")
+        q_include_activity = st.checkbox("Include in-class activity", value=False, key="q_include_activity")
+
+    st.markdown("---")
+    st.markdown("**🎨 Style match (optional)** — upload 1-3 of your past slides to make the deck look like *yours*.")
+    q_pptx_files = st.file_uploader(
+        "Past .pptx files",
+        type=["pptx"],
+        accept_multiple_files=True,
+        help="If skipped, the deck uses a generic clean style.",
+        key="q_pptx_uploader",
+    )
+
+    q_image_mode = st.radio(
+        "Images for image-type slides:",
+        options=["search", "svg", "skip"],
+        format_func=lambda x: {
+            "search": "🔍 Web search (real photos)",
+            "svg":    "🎨 AI-generated diagrams",
+            "skip":   "⏭ Skip — placeholders only (fastest)",
+        }[x],
+        index=0, horizontal=True, key="q_image_mode",
+    )
+    q_theme = st.selectbox(
+        "Background theme",
+        options=list(THEMES.keys()),
+        format_func=lambda k: THEMES[k]["label"],
+        index=0, key="q_theme",
+    )
+
+    st.markdown("---")
+    _q_can_build = _auth.can_build()
+    _q_btn_label = "🚀 Build deck" if _q_can_build else "🚀 Build deck (quota reached)"
+    if st.button(_q_btn_label, type="primary", key="q_build", disabled=not _q_can_build,
+                 use_container_width=True):
+        if not q_topic.strip():
+            st.error("Topic is required.")
+        elif not q_objectives.strip():
+            st.error("At least one learning objective required.")
+        elif not _auth.can_build():
+            st.error("⚠️ Quota reached. Email dvora5018@gmail.com for more.")
+        else:
+            obj_list = [o.strip().lstrip("•·-* ").strip()
+                        for o in q_objectives.splitlines() if o.strip()]
+
+            # Step 1: optional style profile from uploaded pptx
+            q_style_profile = None
+            if q_pptx_files:
+                with st.spinner(f"Analyzing your style from {len(q_pptx_files)} pptx file(s)..."):
+                    try:
+                        # Save uploaded files to a temp folder so style_analyzer can read them
+                        import tempfile, os as _os
+                        with tempfile.TemporaryDirectory() as _td:
+                            paths = []
+                            for f in q_pptx_files:
+                                p = _os.path.join(_td, f.name)
+                                with open(p, "wb") as _w:
+                                    _w.write(f.read())
+                                paths.append(p)
+                            q_style_profile = extract_style_profile(paths)
+                        st.success(f"✓ Style profile extracted from {len(q_pptx_files)} file(s).")
+                    except Exception as e:
+                        st.warning(f"Style extraction failed ({e}). Building with default style.")
+
+            # Step 2: generate outline (no syllabus, no course memory)
+            with st.spinner("Drafting outline..."):
+                try:
+                    outline_json = generate_outline(
+                        topic=q_topic.strip(),
+                        objectives=obj_list,
+                        rough_notes=q_notes.strip(),
+                        module=q_module,
+                        duration_minutes=int(q_duration),
+                        recent_examples=[],
+                        style_profile=q_style_profile,
+                        target_slides=int(q_target_slides),
+                        include_code=bool(q_include_code),
+                        include_homework=bool(q_include_homework),
+                        include_activity=bool(q_include_activity),
+                        prior_memory=None,
+                        include_recap=False,
+                        audience_level=q_audience,
+                    )
+                    st.session_state["outline"] = outline_json
+                except Exception as e:
+                    st.error(f"Outline generation failed: {e}")
+                    st.stop()
+
+            # Step 3: build HTML deck
+            with st.spinner("Building deck..."):
+                try:
+                    safe_name = "".join(c if c.isalnum() else "_" for c in q_topic[:40]).strip("_")
+                    out_html = f"output/quick_{safe_name}.html"
+                    path = build_html(outline_json, out_html,
+                                      image_mode=q_image_mode, theme=q_theme)
+                    st.session_state["html_path"] = path
+                    st.session_state["pdf_path"] = None
+                    _auth.consume_deck()
+                    st.success(f"🎉 Deck ready! {_auth.remaining_decks()} build(s) remaining.")
+                except Exception as e:
+                    st.error(f"Deck build failed: {e}")
+                    st.stop()
+
+    # Download buttons (re-uses the same html_path session state as Stage 4)
+    if st.session_state.get("html_path") and Path(st.session_state["html_path"]).exists():
+        st.markdown("---")
+        st.markdown("**📥 Download your deck:**")
+        dc1, dc2, dc3 = st.columns(3)
+        with dc1:
+            with open(st.session_state["html_path"], "rb") as f:
+                st.download_button("⬇ HTML (live deck)", f,
+                                   file_name=Path(st.session_state["html_path"]).name,
+                                   mime="text/html", use_container_width=True)
+        with dc2:
+            if st.button("📊 Export PPTX", key="q_export_pptx", use_container_width=True):
+                with st.spinner("Building PPTX..."):
+                    base = Path(st.session_state["html_path"]).stem
+                    pptx_path = export_pptx(st.session_state["outline"], f"output/{base}.pptx")
+                    st.session_state["pptx_path"] = pptx_path
+                    st.success("PPTX ready below.")
+        with dc3:
+            if st.button("📄 Export PDF", key="q_export_pdf", use_container_width=True):
+                with st.spinner("Rendering PDF..."):
+                    try:
+                        pdf_path = str(Path(st.session_state["html_path"]).with_suffix(".pdf"))
+                        export_html_to_pdf(st.session_state["html_path"], pdf_path)
+                        st.session_state["pdf_path"] = pdf_path
+                        st.success("PDF ready below.")
+                    except Exception as e:
+                        st.error(f"PDF export failed: {e}")
+
+        if st.session_state.get("pptx_path") and Path(st.session_state["pptx_path"]).exists():
+            with open(st.session_state["pptx_path"], "rb") as f:
+                st.download_button("⬇ PPTX (editable)", f,
+                                   file_name=Path(st.session_state["pptx_path"]).name,
+                                   mime="application/vnd.openxmlformats-officedocument.presentationml.presentation")
+        if st.session_state.get("pdf_path") and Path(st.session_state["pdf_path"]).exists():
+            with open(st.session_state["pdf_path"], "rb") as f:
+                st.download_button("⬇ PDF (handouts)", f,
+                                   file_name=Path(st.session_state["pdf_path"]).name,
+                                   mime="application/pdf")
+
+        st.caption(
+            "Want to edit slides before exporting? Switch to **Stage 3** — your outline is already loaded there."
+        )
+
+
+with tabs[1]:
     st.subheader("Stage 1 — Course → Syllabus")
     c1, c2 = st.columns([2, 1])
     with c1:
@@ -840,7 +1030,7 @@ with tabs[0]:
             if st.button("Save edits", key="save_syl"):
                 st.session_state["syllabus"] = edited; save_syllabus(edited); st.success("Saved.")
 
-with tabs[1]:
+with tabs[2]:
     st.subheader("Stage 2 — Teaching style")
     uploads = st.file_uploader("Upload previous .pptx lectures", type=["pptx"], accept_multiple_files=True)
     if st.button("Extract teaching style", type="primary", key="gen_style"):
@@ -1015,7 +1205,7 @@ with tabs[1]:
     else:
         st.info("Upload past decks to extract your style.")
 
-with tabs[2]:
+with tabs[3]:
     st.subheader("Stage 3 — Session outline")
     if st.session_state["style_profile"]: st.success("Style profile active.")
     syl_obj = None
@@ -1533,7 +1723,7 @@ with tabs[2]:
             if st.button("Save raw edits", key="save_outline"):
                 st.session_state["outline"] = edited; st.success("Saved.")
 
-with tabs[3]:
+with tabs[4]:
     st.subheader("Stage 4 — Deck (render only)")
     st.caption("Render the outline from Stage 3 as a deck. Pick image style and background, then build.")
     if not st.session_state["outline"]:
@@ -1781,7 +1971,7 @@ with tabs[3]:
                             st.rerun()
 
 # ---------- Stage 5: Session preview video ----------
-with tabs[4]:
+with tabs[5]:
     st.subheader("Stage 5 — 🎬 Session preview video")
     st.caption(
         "Generate a 60-90 second teaser video for the session you built in Stage 4. "
@@ -1887,7 +2077,7 @@ with tabs[4]:
                 )
 
 # ---------- Stage 6: Student Study Guide ----------
-with tabs[5]:
+with tabs[6]:
     st.subheader("Stage 6 — 🎓 Student Study Guide")
     st.caption(
         "A separate student-facing .html — interactive flash cards + multiple-choice quiz + key summary. "
