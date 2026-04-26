@@ -207,6 +207,47 @@ def _parallel_fetch_images(image_slides, mode="search"):
 def _parallel_generate_svgs(image_slides):
     return _parallel_fetch_images(image_slides, mode="svg")
 
+def _split_steps(text_or_list):
+    """Turn '1. Do X. 2. Do Y. 3. Do Z' (or any list-shaped string) into a list
+    of clean step strings. If already a list, just clean each item.
+
+    Detects:
+      - Numbered: '1.', '2.', '1)', '2)', etc.
+      - Bulleted: '•', '-', '*', '–'
+    Falls back to a single-item list if no markers are found.
+    """
+    import re
+    if isinstance(text_or_list, list):
+        # Already a list — just strip and drop empties
+        return [str(s).strip().lstrip("•·-*– ").strip() for s in text_or_list if s and str(s).strip()]
+    s = str(text_or_list or "").strip()
+    if not s:
+        return []
+    # Try numbered pattern: split on " 1. " " 2. " etc. (but keep number from start)
+    # Pattern: number followed by . or ) followed by space
+    parts = re.split(r'(?:^|\s+)(\d+[\.\)])\s+', s)
+    # re.split with capturing group returns: [pre, '1.', 'text1', '2.', 'text2', ...]
+    if len(parts) >= 3:
+        steps = []
+        # parts[0] is leading text (usually empty); pairs after that are (number, text)
+        if parts[0].strip():
+            steps.append(parts[0].strip())
+        for i in range(1, len(parts) - 1, 2):
+            num = parts[i]
+            text = parts[i + 1].strip().rstrip('.').strip() + '.'
+            steps.append(f"{num} {text}")
+        if len(steps) >= 2:
+            return steps
+    # Try bullet pattern
+    if re.search(r'(?:^|\s)[•·\-*–]\s+', s):
+        bullets = re.split(r'(?:^|\s)[•·\-*–]\s+', s)
+        bullets = [b.strip().rstrip('.').strip() for b in bullets if b.strip()]
+        if len(bullets) >= 2:
+            return bullets
+    # No structure detected — return as single item
+    return [s]
+
+
 def _render_activity_slides(activity):
     """Render 2-3 slides for the in-class warm-up activity."""
     if not activity:
@@ -231,10 +272,13 @@ def _render_activity_slides(activity):
         "lines": intro_lines,
     }))
 
-    # Instructions slide — with action cue based on type
+    # Instructions slide — with action cue based on type.
+    # Split numbered/bulleted instruction strings into proper bullet lines so
+    # the slide doesn't end up as one long paragraph.
     instr_lines = []
     if activity.get("instructions"):
-        instr_lines.append(activity["instructions"])
+        for step in _split_steps(activity["instructions"]):
+            instr_lines.append(step)
     if atype == "excel_simulation":
         instr_lines.append({"text": "📊 Open the Excel file provided with this deck.", "bold": True})
     elif atype == "web_link":
@@ -246,7 +290,8 @@ def _render_activity_slides(activity):
         if source:
             instr_lines.append({"text": f"Source: {source}", "small": True})
         if what:
-            instr_lines.append(what)
+            for step in _split_steps(what):
+                instr_lines.append(step)
     out.append(_render_content_slide({
         "type": "exercise",
         "title": "What to do",
@@ -258,7 +303,7 @@ def _render_activity_slides(activity):
         out.append(_render_content_slide({
             "type": "discussion",
             "title": "Debrief",
-            "lines": activity["debrief_questions"],
+            "lines": _split_steps(activity["debrief_questions"]),
             "key_takeaway": activity.get("facilitation_notes", "").split(".")[0]
                 if activity.get("facilitation_notes") else "",
         }))
@@ -442,11 +487,26 @@ html,body{margin:0;padding:0;background:#222;height:100%;font-family:-apple-syst
 .slide[data-type="question"] .slide-title-accent{margin-left:auto;margin-right:auto;width:200px;height:6px;}
 .slide[data-type="question"] .slide-body{text-align:center;font-size:24pt;max-width:760px;margin:0 auto;}
 .slide[data-type="question"] .key-takeaway{max-width:780px;margin-left:auto;margin-right:auto;text-align:center;}
-.slide-body{font-size:24pt;line-height:1.45;}
-.slide-body p{margin:10px 0;}
+.slide-body{font-size:24pt;line-height:1.5;}
+/* Bullet-point styling — every plain <p> gets a teal bullet marker
+   and proper spacing so slides don't read like paragraphs. */
+.slide-body p{margin:14px 0;padding-left:32px;position:relative;}
+.slide-body p::before{
+  content:"●";position:absolute;left:0;top:2px;
+  color:var(--teal);font-size:14pt;line-height:1.6;
+}
+/* Bold headers don't get a bullet — they're section labels */
+.slide-body p.bold{padding-left:0;font-size:26pt;margin:18px 0 8px;}
+.slide-body p.bold::before{content:none;}
 .slide-body .bold{font-weight:700;}
-.slide-body .small{font-size:18pt;color:var(--muted);}
+/* Small text bumped from 18pt → 20pt so it's still readable for back rows */
+.slide-body p.small{font-size:20pt;color:var(--muted);padding-left:32px;}
+.slide-body p.small::before{content:"›";font-size:18pt;color:#94a3b8;}
+.slide-body .small{font-size:20pt;color:var(--muted);}
 .slide-body .red{color:var(--red);font-weight:700;}
+/* Question-type slides override the bullet styling (centered, no bullets) */
+.slide[data-type="question"] .slide-body p{padding-left:0;}
+.slide[data-type="question"] .slide-body p::before{content:none;}
 .key-takeaway{margin-top:36px;background:var(--teal);background-image:linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);border-radius:14px;padding:18px 28px 22px;color:#fff;box-shadow:0 8px 24px rgba(13,148,136,0.25);position:relative;}
 .key-takeaway::before{content:"▌  KEY INSIGHT";display:block;font-size:11pt;font-weight:700;letter-spacing:1.5px;color:var(--mint);margin-bottom:8px;text-transform:uppercase;font-family:inherit;}
 .key-takeaway-text{font-size:26pt;font-weight:700;line-height:1.25;}
