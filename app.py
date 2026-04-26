@@ -1178,12 +1178,12 @@ st.markdown(_pills_html, unsafe_allow_html=True)
 _mode = st.session_state.get("start_mode")
 if _mode:
     _mode_msg = {
-        "quick":   ("⚡ **Quick deck mode** — go to the **⚡ Quick deck** tab (first one). "
-                    "Type a topic + optional pptx, get a deck in ~5 min."),
-        "full":    ("📚 **Full course mode** — work through the numbered tabs in order: "
+        "quick":   ("⚡ **Quick deck** — type a topic, optionally upload past slides for style match, "
+                    "get a deck in ~5 min. Need more options? Switch to Full course mode."),
+        "full":    ("📚 **Full course** — work through the numbered tabs in order: "
                     "**1. Course** → **2. Style** → **3. Outline** → **4. Deck** → (optional 5/6)."),
-        "outline": ("🎯 **Outline only mode** — go to the **⚡ Quick deck** tab and check "
-                    "**'Outline only — skip deck build'** at the bottom. Get a text outline you can paste anywhere."),
+        "outline": ("🎯 **Outline only** — type a topic, get a slide-by-slide text plan you can edit anywhere. "
+                    "(The 'Outline only' checkbox is pre-checked for you.)"),
     }.get(_mode)
     if _mode_msg:
         gc1, gc2 = st.columns([6, 1])
@@ -1209,14 +1209,37 @@ except Exception as _e:
         st.warning(f"⚠️ Admin panel unavailable: `{_e}`. Reboot the app from "
                    "Manage app → ⋮ → Reboot.")
 
-tabs = st.tabs(["⚡ Quick deck","1. Course","2. Teaching style","3. Session outline","4. Deck","5. 🎬 Intro video","6. 🎓 Study guide"])
+# ── Tabs shown depend on the mode picked on the welcome page ──
+# Quick / Outline modes: only the ⚡ Quick deck tab is relevant
+#   (it already has inline Intro video + Study guide buttons)
+# Full mode: the 6 numbered stages (no Quick deck tab — they don't need it)
+_mode = st.session_state.get("start_mode", "full")
+if _mode in ("quick", "outline"):
+    tabs = st.tabs(["⚡ Quick deck"])
+    QUICK_IDX  = 0
+    COURSE_IDX = STYLE_IDX = OUTLINE_IDX = DECK_IDX = VIDEO_IDX = STUDY_IDX = None
+elif _mode == "full":
+    tabs = st.tabs(["1. Course","2. Teaching style","3. Session outline",
+                    "4. Deck","5. 🎬 Intro video","6. 🎓 Study guide"])
+    QUICK_IDX  = None
+    COURSE_IDX = 0
+    STYLE_IDX  = 1
+    OUTLINE_IDX = 2
+    DECK_IDX   = 3
+    VIDEO_IDX  = 4
+    STUDY_IDX  = 5
+else:  # safety fallback — show everything
+    tabs = st.tabs(["⚡ Quick deck","1. Course","2. Teaching style","3. Session outline",
+                    "4. Deck","5. 🎬 Intro video","6. 🎓 Study guide"])
+    QUICK_IDX, COURSE_IDX, STYLE_IDX, OUTLINE_IDX, DECK_IDX, VIDEO_IDX, STUDY_IDX = 0,1,2,3,4,5,6
 
 # ═══════════════════════════════════════════════════════════════
 #  ⚡ QUICK DECK — single-topic, no-syllabus express path
 #  Skips Stage 1-3. One topic in, one deck out. Optional pptx upload
 #  for instant style match. Counts as 1 toward the user's quota.
 # ═══════════════════════════════════════════════════════════════
-with tabs[0]:
+if QUICK_IDX is not None:
+  with tabs[QUICK_IDX]:
     st.subheader("⚡ Quick deck — one topic, no setup")
     st.markdown(
         "Just want a deck on a single topic? Skip the syllabus / course-memory flow. "
@@ -1583,7 +1606,8 @@ with tabs[0]:
                     st.caption("📤 Send this .html to students — works offline, scores save in their browser.")
 
 
-with tabs[1]:
+if COURSE_IDX is not None:
+  with tabs[COURSE_IDX]:
     st.subheader("Stage 1 — Course → Syllabus")
     c1, c2 = st.columns([2, 1])
     with c1:
@@ -1644,7 +1668,8 @@ with tabs[1]:
             if st.button("Save edits", key="save_syl"):
                 st.session_state["syllabus"] = edited; save_syllabus(edited); st.success("Saved.")
 
-with tabs[2]:
+if STYLE_IDX is not None:
+  with tabs[STYLE_IDX]:
     st.subheader("Stage 2 — Teaching style")
     uploads = st.file_uploader("Upload previous .pptx lectures", type=["pptx"], accept_multiple_files=True)
     if st.button("Extract teaching style", type="primary", key="gen_style"):
@@ -1819,7 +1844,8 @@ with tabs[2]:
     else:
         st.info("Upload past decks to extract your style.")
 
-with tabs[3]:
+if OUTLINE_IDX is not None:
+  with tabs[OUTLINE_IDX]:
     st.subheader("Stage 3 — Session outline")
     if st.session_state["style_profile"]: st.success("Style profile active.")
     syl_obj = None
@@ -2337,7 +2363,8 @@ with tabs[3]:
             if st.button("Save raw edits", key="save_outline"):
                 st.session_state["outline"] = edited; st.success("Saved.")
 
-with tabs[4]:
+if DECK_IDX is not None:
+  with tabs[DECK_IDX]:
     st.subheader("Stage 4 — Deck (render only)")
     st.caption("Render the outline from Stage 3 as a deck. Pick image style and background, then build.")
     if not st.session_state["outline"]:
@@ -2585,7 +2612,8 @@ with tabs[4]:
                             st.rerun()
 
 # ---------- Stage 5: Session preview video ----------
-with tabs[5]:
+if VIDEO_IDX is not None:
+  with tabs[VIDEO_IDX]:
     st.subheader("Stage 5 — 🎬 Session preview video")
     st.caption(
         "Generate a 60-90 second teaser video for the session you built in Stage 4. "
@@ -2691,7 +2719,8 @@ with tabs[5]:
                 )
 
 # ---------- Stage 6: Student Study Guide ----------
-with tabs[6]:
+if STUDY_IDX is not None:
+  with tabs[STUDY_IDX]:
     st.subheader("Stage 6 — 🎓 Student Study Guide")
     st.caption(
         "A separate student-facing .html — interactive flash cards + multiple-choice quiz + key summary. "
