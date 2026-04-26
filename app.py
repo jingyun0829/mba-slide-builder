@@ -647,20 +647,56 @@ st.session_state.setdefault("welcomed", False)
 
 # ---------- Welcome / landing page (shown until user clicks "Get started") ----------
 if not st.session_state["welcomed"]:
-    # Apply dark teal background to the WHOLE app (not just hero div).
-    # This way the button and feature cards below the hero stay on dark bg
-    # so the white text remains visible. CSS naturally stops applying when
-    # welcomed=True on the next rerun.
+    # Apply dark teal background + FULL-VIEWPORT animated starfield.
+    # The stars are in a fixed-position div that spans the whole page,
+    # so they cover the area below the hero too (not just inside .welcome-wrap).
     st.markdown("""
 <style>
 [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp, .main {
   background:
-    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(13,148,136,0.45) 0%, transparent 55%),
-    linear-gradient(180deg, #060606 0%, #062b29 50%, #050505 100%) !important;
+    radial-gradient(ellipse 100% 70% at 50% 0%, rgba(13,148,136,0.50) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 85% 60%, rgba(94,234,212,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 15% 80%, rgba(20,120,90,0.30) 0%, transparent 60%),
+    linear-gradient(180deg, #050505 0%, #062b29 40%, #021614 80%, #030a09 100%) !important;
   background-attachment: fixed !important;
 }
 .block-container { background: transparent !important; padding-top: 0 !important; }
 header[data-testid="stHeader"] { background: transparent !important; }
+
+/* ── Full-viewport animated starfield ── */
+.fullpage-stars {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+}
+.fullpage-stars span {
+  position: absolute; border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 6px rgba(255,255,255,0.7);
+  animation: twinkle 3s ease-in-out infinite;
+}
+.fullpage-stars span.tiny  { width:1px;  height:1px; background:rgba(255,255,255,0.8); box-shadow:0 0 3px rgba(255,255,255,0.5); }
+.fullpage-stars span.small { width:2px;  height:2px; }
+.fullpage-stars span.med   { width:2.5px; height:2.5px; box-shadow: 0 0 10px rgba(255,255,255,0.9); }
+.fullpage-stars span.teal  { background:#5eead4; box-shadow:0 0 8px rgba(94,234,212,0.9); width:2px; height:2px; }
+.fullpage-stars span.mint  { background:#a7f3d0; box-shadow:0 0 8px rgba(167,243,208,0.85); width:2px; height:2px; }
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.6); }
+  50%      { opacity: 1;    transform: scale(1.5); }
+}
+
+/* ── Drifting nebula blobs (extra atmosphere) ── */
+.fullpage-stars .nebula {
+  position: absolute; border-radius: 50%;
+  filter: blur(100px); pointer-events: none; opacity: 0.5;
+}
+.nebula-1 { width: 500px; height: 500px; background: #0d9488; top: -8%; left: -10%;  animation: drift1 24s ease-in-out infinite; }
+.nebula-2 { width: 400px; height: 400px; background: #115e59; top: 35%;  right: -12%; animation: drift2 30s ease-in-out infinite; }
+.nebula-3 { width: 550px; height: 550px; background: #042f2e; bottom: -15%; left: 30%; animation: drift3 34s ease-in-out infinite; }
+.nebula-4 { width: 320px; height: 320px; background: #34d399; opacity: 0.25; top: 55%; left: 45%; animation: drift4 28s ease-in-out infinite; }
+@keyframes drift1 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(140px,90px) scale(1.15);} }
+@keyframes drift2 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-110px,130px) scale(0.9);} }
+@keyframes drift3 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(70px,-90px) scale(1.08);} }
+@keyframes drift4 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-40px,-80px) scale(1.25);} }
+
 /* Make the Get-started button stand out on dark bg */
 .stButton > button[kind="primary"] {
   background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
@@ -679,9 +715,29 @@ header[data-testid="stHeader"] { background: transparent !important; }
 </style>
     """, unsafe_allow_html=True)
 
-    # Generate scattered star positions for the particle field
+    # Generate scattered stars across the WHOLE viewport (not just hero)
     import random as _random
     _random.seed(42)
+    # ~150 stars + 4 drifting nebula blobs
+    _star_classes = ["tiny", "tiny", "small", "small", "small", "med", "teal", "mint"]
+    _star_spans = "".join(
+        f'<span class="{_random.choice(_star_classes)}" '
+        f'style="top:{_random.uniform(0, 100):.1f}%; left:{_random.uniform(0, 100):.1f}%; '
+        f'animation-delay:{_random.uniform(0, 4):.1f}s;"></span>'
+        for _ in range(150)
+    )
+    st.markdown(
+        '<div class="fullpage-stars">'
+        '<div class="nebula nebula-1"></div>'
+        '<div class="nebula nebula-2"></div>'
+        '<div class="nebula nebula-3"></div>'
+        '<div class="nebula nebula-4"></div>'
+        + _star_spans +
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Keep the existing _star_html (smaller set) for the inner welcome-wrap stars
     _star_html = "".join(
         f'<span style="top:{_random.randint(2, 96)}%; left:{_random.randint(2, 98)}%; '
         f'animation-delay:{_random.uniform(0, 3):.1f}s; '
@@ -885,8 +941,11 @@ if not st.session_state.get("start_mode"):
 <style>
 /* ── Force dark background on the WHOLE app for this page ── */
 [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp, .main {
-  background: radial-gradient(ellipse 90% 60% at 50% 0%, rgba(13,148,136,0.55) 0%, transparent 55%),
-              linear-gradient(180deg, #042f2e 0%, #0a1f1f 50%, #021614 100%) !important;
+  background:
+    radial-gradient(ellipse 100% 70% at 50% 0%, rgba(13,148,136,0.55) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 85% 60%, rgba(94,234,212,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 15% 80%, rgba(20,120,90,0.30) 0%, transparent 60%),
+    linear-gradient(180deg, #050505 0%, #062b29 40%, #021614 80%, #030a09 100%) !important;
   background-attachment: fixed !important;
 }
 .block-container {
@@ -894,19 +953,36 @@ if not st.session_state.get("start_mode"):
   padding-top: 3rem !important;
   max-width: 1280px !important;
 }
-/* Star sprinkles overlay across the whole page */
-[data-testid="stAppViewContainer"]::before {
-  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image:
-    radial-gradient(2px 2px at 12% 18%, rgba(255,255,255,0.7), transparent 60%),
-    radial-gradient(1px 1px at 78% 24%, rgba(167,243,208,0.8), transparent 60%),
-    radial-gradient(1.5px 1.5px at 30% 78%, rgba(255,255,255,0.6), transparent 60%),
-    radial-gradient(1px 1px at 88% 68%, rgba(94,234,212,0.7), transparent 60%),
-    radial-gradient(1.5px 1.5px at 55% 50%, rgba(255,255,255,0.5), transparent 60%),
-    radial-gradient(1px 1px at 5% 55%, rgba(167,243,208,0.6), transparent 60%),
-    radial-gradient(2px 2px at 65% 88%, rgba(94,234,212,0.7), transparent 60%),
-    radial-gradient(1px 1px at 22% 38%, rgba(255,255,255,0.5), transparent 60%);
+/* ── Full-viewport animated starfield (same as welcome page) ── */
+.fullpage-stars {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
 }
+.fullpage-stars span {
+  position: absolute; border-radius: 50%;
+  background: white; box-shadow: 0 0 6px rgba(255,255,255,0.7);
+  animation: twinkle 3s ease-in-out infinite;
+}
+.fullpage-stars span.tiny  { width:1px;  height:1px; background:rgba(255,255,255,0.8); box-shadow:0 0 3px rgba(255,255,255,0.5); }
+.fullpage-stars span.small { width:2px;  height:2px; }
+.fullpage-stars span.med   { width:2.5px; height:2.5px; box-shadow: 0 0 10px rgba(255,255,255,0.9); }
+.fullpage-stars span.teal  { background:#5eead4; box-shadow:0 0 8px rgba(94,234,212,0.9); width:2px; height:2px; }
+.fullpage-stars span.mint  { background:#a7f3d0; box-shadow:0 0 8px rgba(167,243,208,0.85); width:2px; height:2px; }
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.6); }
+  50%      { opacity: 1;    transform: scale(1.5); }
+}
+.fullpage-stars .nebula {
+  position: absolute; border-radius: 50%;
+  filter: blur(100px); pointer-events: none; opacity: 0.5;
+}
+.nebula-1 { width: 500px; height: 500px; background: #0d9488; top: -8%; left: -10%;  animation: drift1 24s ease-in-out infinite; }
+.nebula-2 { width: 400px; height: 400px; background: #115e59; top: 35%;  right: -12%; animation: drift2 30s ease-in-out infinite; }
+.nebula-3 { width: 550px; height: 550px; background: #042f2e; bottom: -15%; left: 30%; animation: drift3 34s ease-in-out infinite; }
+.nebula-4 { width: 320px; height: 320px; background: #34d399; opacity: 0.25; top: 55%; left: 45%; animation: drift4 28s ease-in-out infinite; }
+@keyframes drift1 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(140px,90px) scale(1.15);} }
+@keyframes drift2 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-110px,130px) scale(0.9);} }
+@keyframes drift3 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(70px,-90px) scale(1.08);} }
+@keyframes drift4 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-40px,-80px) scale(1.25);} }
 /* Hide the welcome screen footer if it leaks through */
 .app-footer { display: none !important; }
 
@@ -1001,6 +1077,27 @@ if not st.session_state.get("start_mode"):
   <div class="path-sub">Pick a path · you can switch any time</div>
 </div>
 """, unsafe_allow_html=True)
+
+    # ── Inject the same full-viewport starfield as welcome page ──
+    import random as _random
+    _random.seed(101)  # different seed → different star positions than welcome
+    _star_classes_p = ["tiny", "tiny", "small", "small", "small", "med", "teal", "mint"]
+    _star_spans_p = "".join(
+        f'<span class="{_random.choice(_star_classes_p)}" '
+        f'style="top:{_random.uniform(0, 100):.1f}%; left:{_random.uniform(0, 100):.1f}%; '
+        f'animation-delay:{_random.uniform(0, 4):.1f}s;"></span>'
+        for _ in range(150)
+    )
+    st.markdown(
+        '<div class="fullpage-stars">'
+        '<div class="nebula nebula-1"></div>'
+        '<div class="nebula nebula-2"></div>'
+        '<div class="nebula nebula-3"></div>'
+        '<div class="nebula nebula-4"></div>'
+        + _star_spans_p +
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
     # 3 path cards rendered as columns
     pc1, pc2, pc3 = st.columns(3, gap="medium")
