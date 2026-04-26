@@ -207,6 +207,18 @@ def _parallel_fetch_images(image_slides, mode="search"):
 def _parallel_generate_svgs(image_slides):
     return _parallel_fetch_images(image_slides, mode="svg")
 
+
+def fetch_image_previews(outline_json, image_mode="search"):
+    """Fetch image candidates for an outline WITHOUT building the deck.
+    Returns: {slide_idx: image_data, ...} suitable for passing back to
+    build_html(precomputed_images=...) after the user picks which to keep.
+    """
+    outline = json.loads(outline_json) if isinstance(outline_json, str) else outline_json
+    slides_list = outline.get("slides") or []
+    image_slides = [(i, s) for i, s in enumerate(slides_list)
+                    if (s.get("type") or "").lower().strip() == "image"]
+    return _parallel_fetch_images(image_slides, mode=image_mode)
+
 def _split_steps(text_or_list):
     """Turn '1. Do X. 2. Do Y. 3. Do Z' (or any list-shaped string) into a list
     of clean step strings. If already a list, just clean each item.
@@ -507,9 +519,69 @@ html,body{margin:0;padding:0;background:#222;height:100%;font-family:-apple-syst
 /* Question-type slides override the bullet styling (centered, no bullets) */
 .slide[data-type="question"] .slide-body p{padding-left:0;}
 .slide[data-type="question"] .slide-body p::before{content:none;}
-.key-takeaway{margin-top:36px;background:var(--teal);background-image:linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);border-radius:14px;padding:18px 28px 22px;color:#fff;box-shadow:0 8px 24px rgba(13,148,136,0.25);position:relative;}
-.key-takeaway::before{content:"▌  KEY INSIGHT";display:block;font-size:11pt;font-weight:700;letter-spacing:1.5px;color:var(--mint);margin-bottom:8px;text-transform:uppercase;font-family:inherit;}
-.key-takeaway-text{font-size:26pt;font-weight:700;line-height:1.25;}
+/* ═══ KEY INSIGHT callout — high-contrast hero card ═══ */
+.key-takeaway{
+  margin-top:42px;
+  background:
+    radial-gradient(ellipse 60% 80% at 0% 0%, rgba(94,234,212,0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 100% 100%, rgba(4,47,46,0.55) 0%, transparent 60%),
+    linear-gradient(135deg, #14b8a6 0%, #0d9488 45%, #042f2e 100%);
+  border-radius:20px;
+  padding:30px 40px 30px 110px;
+  color:#fff;
+  position:relative;
+  overflow:hidden;
+  box-shadow:
+    0 20px 50px rgba(13,148,136,0.45),
+    0 4px 12px rgba(0,0,0,0.20),
+    inset 0 1px 0 rgba(255,255,255,0.20);
+  border:1px solid rgba(167,243,208,0.30);
+  animation: ktGlow 4s ease-in-out infinite;
+}
+@keyframes ktGlow {
+  0%, 100% { box-shadow: 0 20px 50px rgba(13,148,136,0.45), 0 4px 12px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.20); }
+  50%      { box-shadow: 0 26px 60px rgba(13,148,136,0.65), 0 6px 18px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.30); }
+}
+/* Big lightbulb icon in the left corner */
+.key-takeaway::before{
+  content:"💡";
+  position:absolute;
+  left:24px; top:50%; transform:translateY(-50%);
+  font-size:54pt;
+  line-height:1;
+  filter: drop-shadow(0 0 16px rgba(255,236,140,0.65));
+  animation: ktPulse 2.5s ease-in-out infinite;
+}
+@keyframes ktPulse {
+  0%, 100% { transform: translateY(-50%) scale(1); }
+  50%      { transform: translateY(-50%) scale(1.12); }
+}
+/* "KEY INSIGHT" label pill at top-right */
+.key-takeaway::after{
+  content:"KEY INSIGHT";
+  position:absolute;
+  top:14px; right:18px;
+  font-size:9pt; font-weight:700;
+  letter-spacing:2px;
+  color:#042f2e;
+  background:linear-gradient(135deg, #a7f3d0 0%, #5eead4 100%);
+  padding:4px 12px;
+  border-radius:20px;
+  font-family:ui-monospace,"SF Mono",Consolas,monospace;
+  box-shadow:0 2px 8px rgba(94,234,212,0.45);
+}
+/* Diagonal sheen across the card */
+.key-takeaway::before, .key-takeaway::after{ z-index:2; }
+.key-takeaway-text{
+  font-size:28pt;
+  font-weight:700;
+  line-height:1.30;
+  font-family:'Source Serif Pro',Georgia,serif;
+  letter-spacing:-0.5px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.20);
+  position:relative;
+  z-index:1;
+}
 .deck-footer{position:absolute;bottom:18px;left:72px;right:72px;display:flex;justify-content:space-between;align-items:center;font-size:11pt;color:var(--footer);font-family:ui-monospace,"SF Mono",Consolas,monospace;border-top:1px solid #e5e7eb;padding-top:8px;letter-spacing:0.3px;}
 .deck-footer .session{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:20px;}
 .deck-footer .pages{flex-shrink:0;}
@@ -730,17 +802,26 @@ async function runCode(btn){
 </script></body></html>
 """
 
-def build_html(outline_json, output_path, image_mode="search", theme="light_gray"):
+def build_html(outline_json, output_path, image_mode="search", theme="light_gray",
+               precomputed_images=None):
     """image_mode: 'search' (Tavily web image), 'svg' (Haiku SVG), or 'skip'.
-    theme: one of THEMES keys — controls the deck background palette."""
+    theme: one of THEMES keys — controls the deck background palette.
+    precomputed_images: optional dict {slide_idx: image_data}. When provided,
+        the fetch step is skipped — used by the UI's "preview first" workflow
+        so users can pick/skip per-slide images without re-fetching."""
     outline = json.loads(outline_json)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     slides_list = outline.get("slides") or []
 
-    # Pre-fetch all image slide media in PARALLEL (up to 8 calls at once).
-    image_slides = [(i, s) for i, s in enumerate(slides_list)
-                    if (s.get("type") or "").lower().strip() == "image"]
-    image_by_idx = _parallel_fetch_images(image_slides, mode=image_mode)
+    if precomputed_images is not None:
+        # Skip the fetch — use what the caller already prepared.
+        # Slides not in the dict will fall back to placeholder text.
+        image_by_idx = precomputed_images
+    else:
+        # Pre-fetch all image slide media in PARALLEL (up to 8 calls at once).
+        image_slides = [(i, s) for i, s in enumerate(slides_list)
+                        if (s.get("type") or "").lower().strip() == "image"]
+        image_by_idx = _parallel_fetch_images(image_slides, mode=image_mode)
 
     slides_out = [_render_title_slide(outline.get("session_title","Untitled"), outline.get("duration_minutes",90))]
     has_lo = any((s.get("title","").lower().strip() in ("learning objectives","objectives")) for s in slides_list)
