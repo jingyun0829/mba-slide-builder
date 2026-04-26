@@ -1209,6 +1209,104 @@ except Exception as _e:
         st.warning(f"⚠️ Admin panel unavailable: `{_e}`. Reboot the app from "
                    "Manage app → ⋮ → Reboot.")
 
+# ═══════════════════════════════════════════════════════════════
+#  📸 Image preview block — used by both Stage 4 and Quick deck
+#  to let users pick which AI-fetched images to keep before final build.
+#  Reads/writes session_state: img_previews, img_keep, img_pending_build
+# ═══════════════════════════════════════════════════════════════
+def _render_image_preview_block():
+    """Render the per-slide image preview UI if a build is pending preview.
+    Returns True if it rendered something (caller may want to skip downstream UI)."""
+    if not (st.session_state.get("img_pending_build") and st.session_state.get("img_previews")):
+        return False
+
+    st.markdown("---")
+    _previews = st.session_state["img_previews"]
+    _keep = st.session_state["img_keep"]
+    _kept_count = sum(1 for v in _keep.values() if v)
+    st.markdown(f"### 📸 Image preview · **{_kept_count}/{len(_previews)}** images will be included")
+    st.caption(
+        "Uncheck any image that doesn't match the slide. Slides with images unchecked "
+        "will fall back to a placeholder text label instead."
+    )
+
+    try:
+        _outline_for_preview = json.loads(st.session_state["outline"])
+        _slides_for_preview = _outline_for_preview.get("slides") or []
+    except Exception:
+        _slides_for_preview = []
+
+    _ordered_idxs = sorted(_previews.keys())
+    for _row_start in range(0, len(_ordered_idxs), 3):
+        _row_idxs = _ordered_idxs[_row_start:_row_start + 3]
+        _cols = st.columns(3)
+        for _ci, _idx in enumerate(_row_idxs):
+            with _cols[_ci]:
+                _slide = _slides_for_preview[_idx] if _idx < len(_slides_for_preview) else {}
+                _title = _slide.get("title", "(untitled)")
+                _hint = _slide.get("image_hint", "")
+                _img = _previews[_idx]
+                if isinstance(_img, str) and _img.lstrip().startswith("<svg"):
+                    st.markdown(
+                        f'<div style="background:#f8f9fa;padding:10px;border-radius:8px;'
+                        f'height:160px;overflow:hidden;display:flex;align-items:center;'
+                        f'justify-content:center;">{_img}</div>',
+                        unsafe_allow_html=True,
+                    )
+                elif isinstance(_img, dict) and _img.get("url"):
+                    try:
+                        st.image(_img["url"], use_column_width=True)
+                    except Exception:
+                        st.markdown(f'<img src="{_img["url"]}" style="width:100%;border-radius:8px;" />',
+                                    unsafe_allow_html=True)
+                else:
+                    st.warning(f"⚠️ No image found for slide {_idx + 1}")
+                st.markdown(f"**Slide {_idx + 1}: {_title}**")
+                if _hint:
+                    st.caption(_hint[:120] + ("…" if len(_hint) > 120 else ""))
+                _keep[_idx] = st.checkbox(
+                    "✓ Keep this image",
+                    value=_keep.get(_idx, True),
+                    key=f"img_keep_{_idx}",
+                )
+
+    st.session_state["img_keep"] = _keep
+
+    st.markdown("---")
+    _b_build, _b_cancel = st.columns([2, 1])
+    with _b_build:
+        if st.button("🚀 Build deck with these selections", type="primary",
+                     key="build_with_preview", use_container_width=True):
+            _pb = st.session_state["img_pending_build"]
+            _filtered = {idx: data for idx, data in _previews.items() if _keep.get(idx, True)}
+            with st.spinner(f"Building deck with {len(_filtered)} images..."):
+                path = build_html(
+                    st.session_state["outline"],
+                    f"output/{_pb['out_name']}.html",
+                    image_mode=_pb["image_mode"],
+                    theme=_pb["theme"],
+                    precomputed_images=_filtered,
+                )
+                st.session_state["html_path"] = path
+                st.session_state["pdf_path"] = None
+            # If this build came from Quick deck, count it toward quota now
+            # (Stage 4 already counted at outline generation, so don't double-count).
+            if _pb.get("from_quick"):
+                _auth.consume_deck()
+            st.session_state.pop("img_pending_build", None)
+            st.session_state.pop("img_previews", None)
+            st.session_state.pop("img_keep", None)
+            st.success(f"✓ Deck built with {len(_filtered)}/{len(_previews)} images.")
+            st.rerun()
+    with _b_cancel:
+        if st.button("Cancel", key="cancel_preview", use_container_width=True):
+            st.session_state.pop("img_pending_build", None)
+            st.session_state.pop("img_previews", None)
+            st.session_state.pop("img_keep", None)
+            st.rerun()
+    return True
+
+
 # ── Tabs shown depend on the mode picked on the welcome page ──
 # Quick / Outline modes: only the ⚡ Quick deck tab is relevant
 #   (it already has inline Intro video + Study guide buttons)
@@ -1309,6 +1407,13 @@ if QUICK_IDX is not None:
             }[x],
             index=0, horizontal=True, key="q_image_mode",
         )
+        q_preview_first = st.checkbox(
+            "📸 Preview images first — let me pick which slides keep their image",
+            value=False,
+            help="Fetches all images first, then shows them so you can uncheck the ones that don't fit. Slightly slower but you get only good images.",
+            disabled=(q_image_mode == "skip"),
+            key="q_preview_first",
+        )
         q_theme = st.selectbox(
             "Background theme",
             options=list(THEMES.keys()),
@@ -1381,13 +1486,30 @@ if QUICK_IDX is not None:
                     st.error(f"Outline generation failed: {e}")
                     st.stop()
 
-            # Step 3: build HTML deck (skipped if outline-only mode)
+            # Step 3: build HTML deck (skipped if outline-only mode).
+            # If "preview first" is on, we fetch images, save to session_state,
+            # and let the preview UI below pick which to keep — final build
+            # happens after user confirms.
             if q_outline_only:
-                # Just count usage; the outline display happens in the section below
                 _auth.consume_deck()
                 st.session_state["html_path"] = None
                 st.session_state["pdf_path"] = None
                 st.success(f"🎉 Outline ready below! {_auth.remaining_decks()} build(s) remaining.")
+            elif q_preview_first and q_image_mode != "skip":
+                # Defer build — fetch previews and let user pick
+                from pipeline.slides_html import fetch_image_previews
+                with st.spinner(f"Fetching {q_image_mode} images for preview..."):
+                    previews = fetch_image_previews(outline_json, image_mode=q_image_mode)
+                safe_name = "".join(c if c.isalnum() else "_" for c in q_topic[:40]).strip("_")
+                st.session_state["img_previews"] = previews
+                st.session_state["img_keep"] = {idx: True for idx in previews}
+                st.session_state["img_pending_build"] = {
+                    "out_name": f"quick_{safe_name}",
+                    "image_mode": q_image_mode,
+                    "theme": q_theme,
+                    "from_quick": True,  # marker so the preview UI knows to count quota here
+                }
+                st.rerun()
             else:
                 with st.spinner("Building deck..."):
                     try:
@@ -1402,6 +1524,9 @@ if QUICK_IDX is not None:
                     except Exception as e:
                         st.error(f"Deck build failed: {e}")
                         st.stop()
+
+    # ── 📸 Image preview workflow (same as Stage 4) ──
+    _render_image_preview_block()
 
     # ── Outline-only output: render as markdown text ──
     if q_outline_only and st.session_state.get("outline"):
@@ -2413,19 +2538,41 @@ if DECK_IDX is not None:
         except Exception:
             pass
 
+        # Per-slide image preview workflow — opt-in
+        preview_first = st.checkbox(
+            "📸 Preview images first — let me pick which slides keep their image",
+            value=False,
+            help="Fetches all images first, shows them in a grid. You uncheck the ones that don't fit your topic, then build with the kept ones.",
+            disabled=(image_mode == "skip"),
+            key="deck_preview_first",
+        )
+
         col_html, col_pptx, col_pdf = st.columns(3)
         with col_html:
             if st.button("Build HTML deck", type="primary", key="build_html"):
-                _spinner_label = {
-                    "search": "Building deck (searching real images)...",
-                    "svg":    "Building deck (generating diagrams)...",
-                    "skip":   "Building deck...",
-                }[image_mode]
-                with st.spinner(_spinner_label):
-                    path = build_html(st.session_state["outline"], f"output/{out_name}.html",
-                                       image_mode=image_mode, theme=theme)
-                    st.session_state["html_path"] = path
-                    st.session_state["pdf_path"] = None
+                if preview_first and image_mode != "skip":
+                    # ── Stage A: pre-fetch images, store in session_state, defer build ──
+                    from pipeline.slides_html import fetch_image_previews
+                    with st.spinner(f"Fetching {image_mode} images for preview..."):
+                        previews = fetch_image_previews(st.session_state["outline"], image_mode=image_mode)
+                    st.session_state["img_previews"] = previews
+                    st.session_state["img_keep"] = {idx: True for idx in previews}
+                    st.session_state["img_pending_build"] = {
+                        "out_name": out_name, "image_mode": image_mode, "theme": theme,
+                    }
+                    st.rerun()
+                else:
+                    # Direct build (no preview)
+                    _spinner_label = {
+                        "search": "Building deck (searching real images)...",
+                        "svg":    "Building deck (generating diagrams)...",
+                        "skip":   "Building deck...",
+                    }[image_mode]
+                    with st.spinner(_spinner_label):
+                        path = build_html(st.session_state["outline"], f"output/{out_name}.html",
+                                           image_mode=image_mode, theme=theme)
+                        st.session_state["html_path"] = path
+                        st.session_state["pdf_path"] = None
                     st.success(f"HTML saved → {path}")
                     # Quick image hit-rate diagnostic
                     if image_mode in ("search", "svg"):
@@ -2473,6 +2620,9 @@ if DECK_IDX is not None:
                             st.success(f"PDF saved → {path}")
                         except Exception as e:
                             st.error(f"PDF export failed: {e}")
+
+        # ── 📸 Image preview workflow (Stage B): pick which images to keep ──
+        _render_image_preview_block()
 
         # Dataset generation (always available if homework present)
         if gen_dataset:
