@@ -523,6 +523,59 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
     line-height: 1.45;
 }
 
+/* Path picker cards (3 starting points) */
+.path-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(167,243,208,0.25);
+    border-radius: 18px;
+    padding: 22px 18px 16px;
+    margin: 12px 4px 12px;
+    backdrop-filter: blur(14px);
+    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    color: white;
+    min-height: 220px;
+}
+.path-card:hover {
+    background: rgba(13,148,136,0.20);
+    border-color: rgba(94,234,212,0.65);
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(13,148,136,0.30);
+}
+.path-card-featured {
+    border-color: rgba(94,234,212,0.55);
+    background: rgba(13,148,136,0.12);
+    box-shadow: 0 0 30px rgba(13,148,136,0.20) inset;
+}
+.path-card .path-icon {
+    font-size: 32pt;
+    line-height: 1;
+    margin-bottom: 10px;
+}
+.path-card .path-title {
+    font-family: 'Source Serif Pro', Georgia, serif;
+    font-size: 20pt;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 4px;
+}
+.path-card .path-time {
+    font-family: ui-monospace, monospace;
+    font-size: 10pt;
+    color: #5eead4;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+.path-card .path-desc {
+    font-size: 11pt;
+    color: rgba(255,255,255,0.78);
+    line-height: 1.5;
+}
+.path-card .path-desc strong {
+    color: #a7f3d0;
+    font-weight: 600;
+}
+
 /* CTA hint with bounce */
 .welcome-cta-hint {
     margin-top: 36px;
@@ -715,19 +768,59 @@ if not st.session_state["welcomed"]:
               '<div class="feat-desc">Flash cards + self-quiz. Send the link — students review at their own pace.</div>'
             '</div>'
           '</div>'
-          '<div class="welcome-cta-hint">↓ Click below when you\'re ready ↓</div>'
+          '<div class="welcome-cta-hint">↓ Pick how you want to start ↓</div>'
         '</div>'
         '</div>'
     )
     st.markdown(_welcome_html, unsafe_allow_html=True)
 
-    _, c_btn, _ = st.columns([1, 1, 1])
-    with c_btn:
-        if st.button("Let's get started  →", type="primary", key="welcome_cta", use_container_width=True):
+    # ── Path picker — 3 starting points ─────────────────────
+    pc1, pc2, pc3 = st.columns(3, gap="small")
+    with pc1:
+        st.markdown(
+            '<div class="path-card">'
+            '<div class="path-icon">📝</div>'
+            '<div class="path-title">One-off lecture</div>'
+            '<div class="path-time">~5 minutes</div>'
+            '<div class="path-desc">A guest talk, workshop, or single class. Type a topic, optionally upload past slides for style match, get a deck. <strong>No course setup needed.</strong></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Start →", key="start_quick", use_container_width=True, type="primary"):
             st.session_state["welcomed"] = True
+            st.session_state["start_mode"] = "quick"
             st.rerun()
+    with pc2:
+        st.markdown(
+            '<div class="path-card path-card-featured">'
+            '<div class="path-icon">📚</div>'
+            '<div class="path-title">Full course</div>'
+            '<div class="path-time">~30 minutes setup</div>'
+            '<div class="path-desc">A semester-long course. Generate a syllabus, analyze your style from past decks, then build week-by-week with memory across sessions. <strong>The full SlideGen experience.</strong></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Start →", key="start_full", use_container_width=True, type="primary"):
+            st.session_state["welcomed"] = True
+            st.session_state["start_mode"] = "full"
+            st.rerun()
+    with pc3:
+        st.markdown(
+            '<div class="path-card">'
+            '<div class="path-icon">🎯</div>'
+            '<div class="path-title">Outline only</div>'
+            '<div class="path-time">~2 minutes</div>'
+            '<div class="path-desc">Just want a structured outline to write yourself? Type a topic, get a slide-by-slide plan as text. <strong>No deck — just the skeleton.</strong></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Start →", key="start_outline", use_container_width=True, type="primary"):
+            st.session_state["welcomed"] = True
+            st.session_state["start_mode"] = "outline"
+            st.rerun()
+
     st.markdown(
-        '<div class="app-footer">Made for business school instructors</div>',
+        '<div class="app-footer" style="margin-top:32px;">Made for business school instructors</div>',
         unsafe_allow_html=True
     )
     st.stop()
@@ -763,6 +856,28 @@ _pills_html = '<div class="status-row">' + "".join([
     _pill("Study guide", bool(st.session_state.get("study_guide_path") and Path(st.session_state.get("study_guide_path") or "").exists())),
 ]) + '</div>'
 st.markdown(_pills_html, unsafe_allow_html=True)
+
+# ── Path-mode guidance banner (only shown if user picked one on welcome) ──
+_mode = st.session_state.get("start_mode")
+if _mode:
+    _mode_msg = {
+        "quick":   ("⚡ **Quick deck mode** — go to the **⚡ Quick deck** tab (first one). "
+                    "Type a topic + optional pptx, get a deck in ~5 min."),
+        "full":    ("📚 **Full course mode** — work through the numbered tabs in order: "
+                    "**1. Course** → **2. Style** → **3. Outline** → **4. Deck** → (optional 5/6)."),
+        "outline": ("🎯 **Outline only mode** — go to the **⚡ Quick deck** tab and check "
+                    "**'Outline only — skip deck build'** at the bottom. Get a text outline you can paste anywhere."),
+    }.get(_mode)
+    if _mode_msg:
+        gc1, gc2 = st.columns([6, 1])
+        with gc1:
+            st.info(_mode_msg)
+        with gc2:
+            st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+            if st.button("↻ Change mode", key="change_mode_btn"):
+                st.session_state["welcomed"] = False
+                st.session_state["start_mode"] = None
+                st.rerun()
 
 # ── Per-user quota badge (beta-mode only) ──
 _auth.render_usage_badge()
@@ -835,26 +950,42 @@ with tabs[0]:
         key="q_pptx_uploader",
     )
 
-    q_image_mode = st.radio(
-        "Images for image-type slides:",
-        options=["search", "svg", "skip"],
-        format_func=lambda x: {
-            "search": "🔍 Web search (real photos)",
-            "svg":    "🎨 AI-generated diagrams",
-            "skip":   "⏭ Skip — placeholders only (fastest)",
-        }[x],
-        index=0, horizontal=True, key="q_image_mode",
+    # If user picked "outline only" path on welcome, default the checkbox to True
+    _outline_only_default = (st.session_state.get("start_mode") == "outline")
+    q_outline_only = st.checkbox(
+        "🎯 Outline only — skip deck build, just give me the structured text outline",
+        value=_outline_only_default, key="q_outline_only",
+        help="Gets you a slide-by-slide plan as text/markdown you can edit or paste anywhere. ~30 sec faster, no images, no deck.",
     )
-    q_theme = st.selectbox(
-        "Background theme",
-        options=list(THEMES.keys()),
-        format_func=lambda k: THEMES[k]["label"],
-        index=0, key="q_theme",
-    )
+
+    if not q_outline_only:
+        q_image_mode = st.radio(
+            "Images for image-type slides:",
+            options=["search", "svg", "skip"],
+            format_func=lambda x: {
+                "search": "🔍 Web search (real photos)",
+                "svg":    "🎨 AI-generated diagrams",
+                "skip":   "⏭ Skip — placeholders only (fastest)",
+            }[x],
+            index=0, horizontal=True, key="q_image_mode",
+        )
+        q_theme = st.selectbox(
+            "Background theme",
+            options=list(THEMES.keys()),
+            format_func=lambda k: THEMES[k]["label"],
+            index=0, key="q_theme",
+        )
+    else:
+        # Set defaults so downstream code doesn't crash
+        q_image_mode = "skip"
+        q_theme = "light_gray"
 
     st.markdown("---")
     _q_can_build = _auth.can_build()
-    _q_btn_label = "🚀 Build deck" if _q_can_build else "🚀 Build deck (quota reached)"
+    if q_outline_only:
+        _q_btn_label = "📝 Generate outline" if _q_can_build else "📝 Generate outline (quota reached)"
+    else:
+        _q_btn_label = "🚀 Build deck" if _q_can_build else "🚀 Build deck (quota reached)"
     if st.button(_q_btn_label, type="primary", key="q_build", disabled=not _q_can_build,
                  use_container_width=True):
         if not q_topic.strip():
@@ -910,23 +1041,97 @@ with tabs[0]:
                     st.error(f"Outline generation failed: {e}")
                     st.stop()
 
-            # Step 3: build HTML deck
-            with st.spinner("Building deck..."):
-                try:
-                    safe_name = "".join(c if c.isalnum() else "_" for c in q_topic[:40]).strip("_")
-                    out_html = f"output/quick_{safe_name}.html"
-                    path = build_html(outline_json, out_html,
-                                      image_mode=q_image_mode, theme=q_theme)
-                    st.session_state["html_path"] = path
-                    st.session_state["pdf_path"] = None
-                    _auth.consume_deck()
-                    st.success(f"🎉 Deck ready! {_auth.remaining_decks()} build(s) remaining.")
-                except Exception as e:
-                    st.error(f"Deck build failed: {e}")
-                    st.stop()
+            # Step 3: build HTML deck (skipped if outline-only mode)
+            if q_outline_only:
+                # Just count usage; the outline display happens in the section below
+                _auth.consume_deck()
+                st.session_state["html_path"] = None
+                st.session_state["pdf_path"] = None
+                st.success(f"🎉 Outline ready below! {_auth.remaining_decks()} build(s) remaining.")
+            else:
+                with st.spinner("Building deck..."):
+                    try:
+                        safe_name = "".join(c if c.isalnum() else "_" for c in q_topic[:40]).strip("_")
+                        out_html = f"output/quick_{safe_name}.html"
+                        path = build_html(outline_json, out_html,
+                                          image_mode=q_image_mode, theme=q_theme)
+                        st.session_state["html_path"] = path
+                        st.session_state["pdf_path"] = None
+                        _auth.consume_deck()
+                        st.success(f"🎉 Deck ready! {_auth.remaining_decks()} build(s) remaining.")
+                    except Exception as e:
+                        st.error(f"Deck build failed: {e}")
+                        st.stop()
 
-    # Download buttons (re-uses the same html_path session state as Stage 4)
-    if st.session_state.get("html_path") and Path(st.session_state["html_path"]).exists():
+    # ── Outline-only output: render as markdown text ──
+    if q_outline_only and st.session_state.get("outline"):
+        try:
+            _outline_dict = json.loads(st.session_state["outline"])
+        except Exception:
+            _outline_dict = None
+        if _outline_dict:
+            st.markdown("---")
+            st.markdown("### 📝 Your outline")
+            # Build markdown from the outline JSON
+            md_lines = [f"# {_outline_dict.get('session_title', q_topic)}",
+                        f"_{_outline_dict.get('duration_minutes', q_duration)} min · {q_module} · {q_audience} level_",
+                        ""]
+            if _outline_dict.get("learning_objectives"):
+                md_lines.append("## Learning objectives")
+                for lo in _outline_dict["learning_objectives"]:
+                    md_lines.append(f"- {lo}")
+                md_lines.append("")
+            md_lines.append("## Slides")
+            for i, slide in enumerate(_outline_dict.get("slides") or [], 1):
+                title = slide.get("title", "(untitled)")
+                stype = (slide.get("type") or "concept").title()
+                md_lines.append(f"\n### Slide {i}: {title}  *({stype})*")
+                for line in slide.get("lines") or []:
+                    if isinstance(line, dict):
+                        text = line.get("text", "")
+                        if line.get("bold"): text = f"**{text}**"
+                        if line.get("red"): text = f"**🔴 {text}**"
+                        md_lines.append(f"- {text}")
+                    else:
+                        md_lines.append(f"- {line}")
+                if slide.get("key_takeaway"):
+                    md_lines.append(f"\n  > 💡 **Key insight:** {slide['key_takeaway']}")
+            if _outline_dict.get("homework"):
+                hw = _outline_dict["homework"]
+                md_lines.append(f"\n## Homework: {hw.get('title', '')}")
+                if hw.get("problem_statement"):
+                    md_lines.append(hw["problem_statement"])
+            if _outline_dict.get("activity"):
+                act = _outline_dict["activity"]
+                md_lines.append(f"\n## In-class activity: {act.get('title', '')}")
+                if act.get("instructions"):
+                    md_lines.append(act["instructions"])
+            md_text = "\n".join(md_lines)
+
+            # Tabs: rendered preview + raw markdown for copy
+            ot1, ot2 = st.tabs(["📖 Preview", "📋 Markdown (copy/paste)"])
+            with ot1:
+                st.markdown(md_text)
+            with ot2:
+                st.code(md_text, language="markdown")
+
+            # Download as .md file
+            safe_name = "".join(c if c.isalnum() else "_" for c in q_topic[:40]).strip("_")
+            st.download_button(
+                "⬇ Download outline (.md)",
+                md_text,
+                file_name=f"outline_{safe_name}.md",
+                mime="text/markdown",
+                use_container_width=True,
+            )
+            st.caption(
+                "Want to turn this into actual slides later? Uncheck 'Outline only' above and click again — "
+                "or switch to **Stage 4** and click Build (your outline is already loaded)."
+            )
+
+    # Download buttons (re-uses the same html_path session state as Stage 4).
+    # Naturally skipped in outline-only mode because html_path is None.
+    if not q_outline_only and st.session_state.get("html_path") and Path(st.session_state["html_path"]).exists():
         st.markdown("---")
         st.markdown("**📥 Download your deck:**")
         dc1, dc2, dc3 = st.columns(3)
