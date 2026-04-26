@@ -306,28 +306,27 @@ def fetch_image_previews(outline_json, image_mode="search"):
     return _parallel_fetch_images(image_slides, mode=image_mode)
 
 def _split_steps(text_or_list):
-    """Turn '1. Do X. 2. Do Y. 3. Do Z' (or any list-shaped string) into a list
-    of clean step strings. If already a list, just clean each item.
+    """Turn a list-shaped string into a list of clean bullet strings.
+    If already a list, just clean each item.
 
-    Detects:
-      - Numbered: '1.', '2.', '1)', '2)', etc.
-      - Bulleted: '•', '-', '*', '–'
-    Falls back to a single-item list if no markers are found.
+    Detects (in order):
+      1. Numbered: '1.' '2.' '1)' '2)'
+      2. Percent-keyed: 'Item A (20%): desc. Item B (25%): desc.'
+      3. Colon-keyed sentences: 'Title One: desc. Title Two: desc.'
+      4. Bulleted: '•', '-', '*', '–'
+    Falls back to single-item list if no structure detected.
     """
     import re
     if isinstance(text_or_list, list):
-        # Already a list — just strip and drop empties
         return [str(s).strip().lstrip("•·-*– ").strip() for s in text_or_list if s and str(s).strip()]
     s = str(text_or_list or "").strip()
     if not s:
         return []
-    # Try numbered pattern: split on " 1. " " 2. " etc. (but keep number from start)
-    # Pattern: number followed by . or ) followed by space
+
+    # 1. Numbered pattern
     parts = re.split(r'(?:^|\s+)(\d+[\.\)])\s+', s)
-    # re.split with capturing group returns: [pre, '1.', 'text1', '2.', 'text2', ...]
     if len(parts) >= 3:
         steps = []
-        # parts[0] is leading text (usually empty); pairs after that are (number, text)
         if parts[0].strip():
             steps.append(parts[0].strip())
         for i in range(1, len(parts) - 1, 2):
@@ -336,13 +335,34 @@ def _split_steps(text_or_list):
             steps.append(f"{num} {text}")
         if len(steps) >= 2:
             return steps
-    # Try bullet pattern
+
+    # 2. Percent-keyed: "Title (XX%): desc. Other Title (YY%): desc."
+    # Split at: period + space, followed by Title (could be lowercase like
+    # 'groupby') + (NN%) + :
+    pct_split = re.split(
+        r'(?<=\.)\s+(?=[a-zA-Z][\w\s&\-]{1,40}\s*\(\d+%\)\s*:)',
+        s,
+    )
+    if len(pct_split) >= 2:
+        return [p.strip() for p in pct_split if p.strip()]
+
+    # 3. Colon-keyed sentences (looser): "Title: desc. Other Title: desc."
+    # Only if there are 3+ such items (avoid false positives on single descriptions).
+    # Restrict the title to ≤ 4 capitalized words to avoid matching mid-sentence colons.
+    colon_split = re.split(
+        r'(?<=\.)\s+(?=[A-Z][a-zA-Z\-]+(?:\s+[A-Z][a-zA-Z\-]+){0,3}\s*:)',
+        s,
+    )
+    if len(colon_split) >= 3:
+        return [p.strip() for p in colon_split if p.strip()]
+
+    # 4. Bulleted pattern
     if re.search(r'(?:^|\s)[•·\-*–]\s+', s):
         bullets = re.split(r'(?:^|\s)[•·\-*–]\s+', s)
         bullets = [b.strip().rstrip('.').strip() for b in bullets if b.strip()]
         if len(bullets) >= 2:
             return bullets
-    # No structure detected — return as single item
+
     return [s]
 
 
@@ -414,10 +434,15 @@ def _render_homework_slides(hw):
   <h2 class="divider-title">Homework</h2>
 </section>''']
     title = hw.get("title","Homework")
+    # ── Your Task slide ──
     lines_ = [{"text": title, "bold": True}]
     if hw.get("problem_statement"):
-        lines_.append(hw["problem_statement"].replace("\n"," "))
+        # Long problem statements get split into separate bullet sentences
+        # (instead of one giant paragraph that's hard to read on a slide)
+        for line in _split_steps(hw["problem_statement"].replace("\n", " ")):
+            lines_.append(line)
     out.append(_render_content_slide({"type":"concept","title":"Your Task","lines":lines_}))
+    # ── Dataset slide ──
     ds = hw.get("dataset") or {}
     if ds:
         lines = []
@@ -427,9 +452,17 @@ def _render_homework_slides(hw):
             cols = ds["columns"]
             lines.append({"text": f"Columns: {', '.join(cols[:8])}" + (" …" if len(cols) > 8 else ""), "small": True})
         if lines: out.append(_render_content_slide({"type":"concept","title":"Dataset","lines":lines}))
-    if hw.get("deliverables"): out.append(_render_content_slide({"type":"concept","title":"Deliverables","lines":hw["deliverables"]}))
-    if hw.get("hints"): out.append(_render_content_slide({"type":"concept","title":"Hints","lines":hw["hints"]}))
-    if hw.get("grading_rubric"): out.append(_render_content_slide({"type":"concept","title":"Grading","lines":[hw["grading_rubric"]]}))
+    # ── Deliverables / Hints / Grading — all use _split_steps so single-string
+    #    Claude responses get broken into proper bullets ──
+    if hw.get("deliverables"):
+        out.append(_render_content_slide({"type":"concept","title":"Deliverables",
+                                          "lines": _split_steps(hw["deliverables"])}))
+    if hw.get("hints"):
+        out.append(_render_content_slide({"type":"concept","title":"Hints",
+                                          "lines": _split_steps(hw["hints"])}))
+    if hw.get("grading_rubric"):
+        out.append(_render_content_slide({"type":"concept","title":"Grading",
+                                          "lines": _split_steps(hw["grading_rubric"])}))
     return out
 
 # ---------- Background themes ----------
