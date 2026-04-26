@@ -505,6 +505,49 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
     transform: translateY(-6px);
     box-shadow: 0 20px 40px rgba(13,148,136,0.25);
 }
+/* Static variant — used in welcome page so cards don't look clickable.
+   No hover transform / glow, no cursor pointer. Pure info display. */
+.welcome-features-static .welcome-feature {
+    cursor: default;
+    transition: none;
+}
+.welcome-features-static .welcome-feature:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.10);
+    transform: none;
+    box-shadow: none;
+}
+.welcome-scroll-hint {
+    text-align: center;
+    margin: 28px auto 16px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 10pt;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    opacity: 0;
+    animation: fadeIn 1.2s ease-out 1.5s forwards;
+}
+.welcome-features-section {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 8px;
+}
+.welcome-features-header {
+    text-align: center;
+    font-family: 'Source Serif Pro', Georgia, serif;
+    font-size: 22pt;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    margin: 0 0 18px;
+    letter-spacing: -0.5px;
+    background: linear-gradient(120deg, #fff 0%, #a7f3d0 50%, #fff 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 .welcome-feature .feat-icon {
     font-size: 24pt;
     margin-bottom: 8px;
@@ -736,7 +779,25 @@ if not st.session_state["welcomed"]:
             '<br>Code walkthroughs, classroom games, homework, datasets — '
             '<em>all generated on demand</em>.'
           '</p>'
-          '<div class="welcome-features">'
+        '</div>'
+        '</div>'
+    )
+    st.markdown(_welcome_html, unsafe_allow_html=True)
+
+    # ── PRIMARY CTA right after the hero — no scrolling needed ──
+    _, c_btn, _ = st.columns([1, 1, 1])
+    with c_btn:
+        if st.button("Let's get started  →", type="primary", key="welcome_cta",
+                     use_container_width=True):
+            st.session_state["welcomed"] = True
+            st.rerun()
+
+    # ── "Or scroll to learn more" subtle hint + feature display ──
+    st.markdown(
+        '<div class="welcome-scroll-hint">↓ or scroll to see what SlideGen can do ↓</div>'
+        '<div class="welcome-features-section">'
+        '<div class="welcome-features-header">What you can do</div>'
+        '<div class="welcome-features welcome-features-static">'
             '<div class="welcome-feature">'
               '<span class="feat-icon">📐</span>'
               '<div class="feat-title">Style-aware</div>'
@@ -760,27 +821,18 @@ if not st.session_state["welcomed"]:
             '<div class="welcome-feature">'
               '<span class="feat-icon">🎬</span>'
               '<div class="feat-title">Class intro video</div>'
-              '<div class="feat-desc">60-90 sec narrated teaser — get students excited before class. Share on Canvas or email.</div>'
+              '<div class="feat-desc">60-90 sec narrated teaser — get students excited before class.</div>'
             '</div>'
             '<div class="welcome-feature">'
               '<span class="feat-icon">🎓</span>'
               '<div class="feat-title">Student self-study</div>'
               '<div class="feat-desc">Flash cards + self-quiz. Send the link — students review at their own pace.</div>'
             '</div>'
-          '</div>'
-          '<div class="welcome-cta-hint">↓ Click below when you\'re ready ↓</div>'
         '</div>'
-        '</div>'
+        '</div>',
+        unsafe_allow_html=True
     )
-    st.markdown(_welcome_html, unsafe_allow_html=True)
 
-    # Single CTA — restored. Picks the path on the NEXT screen.
-    _, c_btn, _ = st.columns([1, 1, 1])
-    with c_btn:
-        if st.button("Let's get started  →", type="primary", key="welcome_cta",
-                     use_container_width=True):
-            st.session_state["welcomed"] = True
-            st.rerun()
     st.markdown(
         '<div class="app-footer" style="margin-top:32px;">Made for business school instructors</div>',
         unsafe_allow_html=True
