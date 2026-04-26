@@ -1224,10 +1224,13 @@ def _render_image_preview_block():
     _previews = st.session_state["img_previews"]
     _keep = st.session_state["img_keep"]
     _kept_count = sum(1 for v in _keep.values() if v)
-    st.markdown(f"### 📸 Image preview · **{_kept_count}/{len(_previews)}** images will be included")
+    _dropped = len(_previews) - _kept_count
+    st.markdown(f"### 📸 Image preview · **{_kept_count}/{len(_previews)}** images will be included"
+                + (f" · ⚠️ **{_dropped} slide(s) will be removed**" if _dropped else ""))
     st.caption(
-        "Uncheck any image that doesn't match the slide. Slides with images unchecked "
-        "will fall back to a placeholder text label instead."
+        "Uncheck any image that doesn't match the slide. **Unchecked slides will be "
+        "removed from the deck entirely** — not converted to text. If you want to keep "
+        "the slide but skip the image, leave the box checked here and edit it later."
     )
 
     try:
@@ -1279,7 +1282,10 @@ def _render_image_preview_block():
                      key="build_with_preview", use_container_width=True):
             _pb = st.session_state["img_pending_build"]
             _filtered = {idx: data for idx, data in _previews.items() if _keep.get(idx, True)}
-            with st.spinner(f"Building deck with {len(_filtered)} images..."):
+            _dropped_count = len(_previews) - len(_filtered)
+            _spinner_msg = (f"Building deck with {len(_filtered)} images"
+                            + (f" ({_dropped_count} slide(s) removed)..." if _dropped_count else "..."))
+            with st.spinner(_spinner_msg):
                 path = build_html(
                     st.session_state["outline"],
                     f"output/{_pb['out_name']}.html",
@@ -1296,7 +1302,12 @@ def _render_image_preview_block():
             st.session_state.pop("img_pending_build", None)
             st.session_state.pop("img_previews", None)
             st.session_state.pop("img_keep", None)
-            st.success(f"✓ Deck built with {len(_filtered)}/{len(_previews)} images.")
+            _success_msg = f"✓ Deck built with {len(_filtered)} images"
+            if _dropped_count:
+                _success_msg += f" — {_dropped_count} slide(s) removed."
+            else:
+                _success_msg += "."
+            st.success(_success_msg)
             st.rerun()
     with _b_cancel:
         if st.button("Cancel", key="cancel_preview", use_container_width=True):

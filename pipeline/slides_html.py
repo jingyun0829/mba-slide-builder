@@ -120,9 +120,79 @@ def _render_code_slides(slide):
                                             group_id=group_id, step_idx=idx))
     return out
 
+def _hint_to_text_lines(hint: str) -> list:
+    """Convert an image_hint (written for AI) into student-readable bullets.
+
+    Strips wrapper junk like 'Diagram:', '[ ... ]'; recognizes common patterns
+    like 'Top-left: X. Top-right: Y' and 'A → B → C'; falls back to sentence
+    splits when no structure is detected.
+    """
+    import re
+    h = (hint or "").strip()
+    if not h:
+        return ["(No content available for this slide.)"]
+
+    # Remove '[' and ']' wrappers
+    h = re.sub(r'^\[\s*', '', h)
+    h = re.sub(r'\s*\]$', '', h)
+    # Strip leading "Diagram:", "Image:", "Visual:" etc.
+    h = re.sub(
+        r'^(?:Diagram|Image|Visual|Illustration|Chart|Graph|Picture|Figure|Infographic)\s*[:.\-—–]\s*',
+        '', h, flags=re.IGNORECASE,
+    )
+    h = h.strip()
+
+    # Pattern 1: pipeline / arrow flow → keep on one bold line
+    if h.count('→') >= 2 or h.count('->') >= 2:
+        m = re.search(r'([\w\s&,]+(?:\s*(?:→|->)\s*[\w\s&,]+){2,})', h)
+        if m:
+            chain = m.group(1).strip()
+            rest = (h[:m.start()] + h[m.end():]).strip(' .,;:')
+            # Remove leftover "Left-to-right pipeline diagram", "Flowchart", etc.
+            rest = re.sub(
+                r'(?:Left-to-right|Right-to-left|Top-down|Vertical|Horizontal)?\s*'
+                r'(?:pipeline|flow(?:chart)?|process|sequence|workflow)\s*'
+                r'(?:diagram|chart)?\s*[:.\-—–]?\s*',
+                '', rest, flags=re.IGNORECASE,
+            ).strip(' .,;:')
+            lines = [{"text": f"📊 Flow: {chain}", "bold": True}]
+            if rest:
+                for s in re.split(r'(?<=[.!?])\s+', rest):
+                    s = s.strip(' .,;:')
+                    if s and len(s) > 3:
+                        lines.append(s)
+            return lines
+
+    # Pattern 2: positional / grid layout (Top-left:, Top-right:, etc.)
+    pos_pattern = re.compile(
+        r'(Top[-\s]?left|Top[-\s]?right|Bottom[-\s]?left|Bottom[-\s]?right|Center|Middle|Left|Right|Top|Bottom)\s*[:\-—–]\s*([^.]+?)(?=(?:\s+(?:Top|Bottom|Center|Middle|Left|Right))|$)',
+        re.IGNORECASE,
+    )
+    matches = pos_pattern.findall(h)
+    if len(matches) >= 2:
+        return [
+            {"text": f"{label.strip().title()}: {text.strip(' .')}", "bold": False}
+            for label, text in matches
+        ]
+
+    # Pattern 3: generic sentence split
+    sentences = re.split(r'(?<=[.!?])\s+', h)
+    sentences = [s.strip(' .') for s in sentences if s.strip() and len(s.strip()) > 5]
+    if sentences:
+        return sentences
+
+    # Last resort
+    return [h]
+
+
 def _render_image_slide(slide, precomputed=None):
     """precomputed: either an SVG string starting with '<svg', or a dict
-    {"url": ..., "description": ...} from web image search, or None."""
+    {"url": ..., "description": ...} from web image search, or None.
+
+    When precomputed is None (no image — either skipped, dropped by user, or
+    failed to fetch), the slide is re-rendered as a TEXT-ONLY concept slide
+    using the cleaned-up image_hint as content. Much friendlier than dumping
+    raw '[Diagram: ...]' placeholder text at students."""
     title = slide.get("title","")
     hint = slide.get("image_hint","")
 
@@ -132,12 +202,20 @@ def _render_image_slide(slide, precomputed=None):
         url = precomputed["url"]
         caption = precomputed.get("description") or hint
         # JS onerror: if the image fails to load (404, CORS, hotlink-block),
-        # hide it and replace the wrapper with a clean placeholder.
+        # hide it and re-render as a text slide via DOM rewrite.
+        fallback_lines = _hint_to_text_lines(hint)
+        # Build a simple inline HTML representation for the JS fallback
+        fallback_html_parts = []
+        for ln in fallback_lines:
+            if isinstance(ln, dict):
+                fallback_html_parts.append(f'<p><strong>{_esc(ln.get("text",""))}</strong></p>')
+            else:
+                fallback_html_parts.append(f'<p>{_esc(str(ln))}</p>')
+        fallback_html = "".join(fallback_html_parts).replace('"', '&quot;')
         fallback_js = (
             "this.style.display='none';"
             "this.parentElement.innerHTML="
-            "'<div class=&quot;image-hint&quot;>[ Diagram (image unavailable): "
-            f"{_esc(hint)[:200]}]</div>';"
+            f"'<div class=&quot;slide-body&quot;>{fallback_html}</div>';"
         )
         body = (
             f'<div class="img-wrapper">'
@@ -147,7 +225,15 @@ def _render_image_slide(slide, precomputed=None):
             f'</div>'
         )
     else:
-        body = f'<div class="image-hint">[ Diagram: {_esc(hint)} ]</div>'
+        # No image at all — render the slide as a clean text concept slide
+        # using the cleaned-up image_hint. This is what the user sees when
+        # they uncheck an image in the preview workflow, or when search/fetch
+        # returned nothing.
+        return _render_content_slide({
+            "type": "concept",
+            "title": title,
+            "lines": _hint_to_text_lines(hint),
+        })
 
     return f'''<section class="slide image-slide" data-type="image">
   <h2 class="slide-title">{_icon_html("image")}<span>{_esc(title)}</span></h2>
@@ -832,6 +918,12 @@ def build_html(outline_json, output_path, image_mode="search", theme="light_gray
         if stype == "title":
             continue
         elif stype == "image":
+            # If the user came through the preview workflow (precomputed_images
+            # was provided) AND they UNCHECKED this slide → drop it entirely.
+            # In any other case (auto-fetch, skip mode, fetch failure) we keep
+            # the slide and let _render_image_slide render its text fallback.
+            if precomputed_images is not None and i not in image_by_idx:
+                continue  # user explicitly removed this slide
             slides_out.append(_render_image_slide(s, precomputed=image_by_idx.get(i)))
         elif stype == "code":
             slides_out.extend(_render_code_slides(s))
