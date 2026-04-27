@@ -553,8 +553,10 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
 <style>
 :root{--red:#C00000;--teal:#0d9488;--teal-dark:#042f2e;--mint:#a7f3d0;--text:#1a1a1a;--muted:#666;--bg:#fff;--footer:#94a3b8;}
 *{box-sizing:border-box;}
-html,body{margin:0;padding:0;background:#0a1f1f;height:100%;font-family:-apple-system,"Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;color:var(--text);}
-.deck{position:relative;width:100%;min-height:100vh;height:100vh;}
+html,body{margin:0;padding:0;background:#0a1f1f;
+  height:100vh;min-height:100vh;width:100vw;overflow:hidden;
+  font-family:-apple-system,"Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;color:var(--text);}
+.deck{position:relative;width:100vw;height:100vh;min-height:100vh;}
 .slide{display:none;position:absolute;inset:0;padding:72px 96px;overflow:auto;
   background:__SLIDE_BG__;
   background-image: __SLIDE_BG_IMG__;
@@ -834,8 +836,30 @@ html,body{margin:0;padding:0;background:#0a1f1f;height:100%;font-family:-apple-s
 .help-hint{position:fixed;bottom:16px;left:20px;color:var(--muted);font-size:11pt;background:rgba(255,255,255,0.85);padding:6px 10px;border-radius:6px;z-index:9999;}
 .speaker-notes{display:none;position:fixed;bottom:0;left:0;right:0;max-height:30vh;overflow-y:auto;background:#f9f8f5;border-top:3px solid #d9c89e;padding:16px 28px;font-size:14pt;line-height:1.5;z-index:10000;}
 body.notes-visible .slide.active .speaker-notes{display:block;}
-@page{size:13.33in 7.5in;margin:0.3in;}
-@media print{html,body{background:white;height:auto;}.deck{height:auto;}.slide{display:block !important;position:static;page-break-after:always;min-height:6.9in;height:auto;padding:0.4in 0.6in;}.navbar,.help-hint,.slide-copy-btn{display:none !important;}.speaker-notes{display:block;position:static;max-height:none;border-top:1px dashed #999;margin-top:28px;}}
+@page{size:13.33in 7.5in;margin:0;}
+@media print{
+  html,body{background:white;height:auto;margin:0;padding:0;}
+  .deck{height:auto;}
+  .slide{display:block !important;position:static !important;
+    page-break-after:always;page-break-inside:avoid;
+    min-height:7.5in !important;height:7.5in !important;
+    width:13.33in !important;
+    padding:0.4in 0.6in;margin:0;overflow:hidden;
+  }
+  /* Title + dividers in PRINT: kill padding so the gradient bg fills the
+     ENTIRE page (not just the top banner with white below). */
+  .title-slide, .section-divider{
+    padding:0 !important;
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:center !important;
+    align-items:center !important;
+  }
+  .title-slide .title-content{min-height:7.5in !important;}
+  .navbar,.help-hint,.slide-copy-btn{display:none !important;}
+  .speaker-notes{display:block;position:static;max-height:none;
+    border-top:1px dashed #999;margin-top:28px;}
+}
 </style></head>
 <body>
 <div class="deck">
