@@ -1836,6 +1836,53 @@ if COURSE_IDX is not None:
                         f"Topics: {', '.join(s.get('topics', []))}  \n"
                         f"{tools_line}"
                     )
+        # ── Download the syllabus as PDF / Markdown ──
+        st.markdown("---")
+        st.markdown("**📥 Download this syllabus**")
+        from pipeline.syllabus_export import syllabus_to_markdown, syllabus_to_pdf
+        _safe_course_name = "".join(
+            c if c.isalnum() else "_"
+            for c in (syl_obj.get("course_title") or "syllabus")[:50]
+        ).strip("_") or "syllabus"
+
+        dl1, dl2 = st.columns(2)
+        with dl1:
+            try:
+                _md_text = syllabus_to_markdown(st.session_state["syllabus"])
+                st.download_button(
+                    "⬇ Download as Markdown (.md)",
+                    _md_text,
+                    file_name=f"{_safe_course_name}_syllabus.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                    help="Editable plain-text format. Opens in any text editor or Notion.",
+                )
+            except Exception as e:
+                st.warning(f"Markdown export failed: {e}")
+        with dl2:
+            if st.button("📄 Generate PDF", key="syl_gen_pdf",
+                         use_container_width=True,
+                         help="Renders a clean printable PDF via headless Chrome. ~10 seconds."):
+                with st.spinner("Rendering syllabus PDF..."):
+                    try:
+                        pdf_path = f"output/{_safe_course_name}_syllabus.pdf"
+                        syllabus_to_pdf(st.session_state["syllabus"], pdf_path)
+                        st.session_state["syllabus_pdf_path"] = pdf_path
+                        st.success("✓ PDF ready below.")
+                    except Exception as e:
+                        st.error(f"PDF generation failed: {e}")
+        # Show download button for PDF after generation
+        if (st.session_state.get("syllabus_pdf_path")
+                and Path(st.session_state["syllabus_pdf_path"]).exists()):
+            with open(st.session_state["syllabus_pdf_path"], "rb") as f:
+                st.download_button(
+                    "⬇ Download syllabus (.pdf)",
+                    f,
+                    file_name=Path(st.session_state["syllabus_pdf_path"]).name,
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
+
         with st.expander("⚙️ Advanced — edit raw syllabus JSON", expanded=False):
             st.caption("For power users. Edit the structured fields directly if the rendered view above isn't enough.")
             edited = st.text_area("Syllabus JSON", value=st.session_state["syllabus"], height=400, label_visibility="collapsed")
