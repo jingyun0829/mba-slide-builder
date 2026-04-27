@@ -86,6 +86,91 @@ def _build_style_sample(decks, max_slides=80):
     return "\n".join(chunks)
 
 
+def _robust_json_parse(text: str) -> dict:
+    """Parse JSON from a potentially messy LLM response.
+
+    Handles all of these failure modes seen in production:
+      1. Plain JSON                                          → json.loads
+      2. ```json ... ``` markdown fences                     → strip fences
+      3. ``` ... ``` (no language)                           → strip fences
+      4. Preamble like 'Here is your analysis:\n{...}'       → find first '{'
+      5. Trailing notes after the JSON                       → find last '}'
+      6. Multiple JSON objects (use the largest balanced)    → bracket counting
+      7. Smart quotes / Unicode quotes                       → normalize
+      8. Trailing commas (a Claude habit)                    → strip them
+    """
+    import re
+
+    if not text:
+        raise ValueError("Empty response from style-extraction model.")
+
+    s = text.strip()
+
+    # Strip markdown fences if present
+    fence_match = re.search(r'```(?:json|JSON)?\s*\n?(.*?)\n?```', s, re.DOTALL)
+    if fence_match:
+        s = fence_match.group(1).strip()
+
+    # Try a direct parse first
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        pass
+
+    # Find the first '{' and the matching last '}'
+    start = s.find('{')
+    end = s.rfind('}')
+    if start == -1 or end == -1 or end < start:
+        raise ValueError(f"Could not locate a JSON object in the response. "
+                         f"First 200 chars: {s[:200]!r}")
+    candidate = s[start:end + 1]
+
+    # Normalize smart quotes that Claude sometimes emits
+    candidate = (candidate
+                 .replace('\u201c', '"').replace('\u201d', '"')
+                 .replace('\u2018', "'").replace('\u2019', "'"))
+    # Strip trailing commas inside objects/arrays
+    candidate = re.sub(r',(\s*[}\]])', r'\1', candidate)
+
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError as e:
+        # One last attempt: walk forward and find the largest balanced { ... }
+        depth = 0
+        in_string = False
+        escape = False
+        last_balanced_end = None
+        for i, ch in enumerate(candidate):
+            if escape:
+                escape = False
+                continue
+            if ch == '\\':
+                escape = True
+                continue
+            if ch == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    last_balanced_end = i
+                    break
+        if last_balanced_end is not None:
+            try:
+                return json.loads(candidate[:last_balanced_end + 1])
+            except json.JSONDecodeError:
+                pass
+        raise ValueError(
+            f"Style-extraction returned non-JSON content. "
+            f"Parse error: {e}. "
+            f"First 300 chars of response: {text[:300]!r}"
+        )
+
+
 def _qualitative_from_claude(decks, quant):
     system = (_PROMPT_DIR / "style_extraction.md").read_text()
     sample = _build_style_sample(decks)
@@ -95,16 +180,11 @@ def _qualitative_from_claude(decks, quant):
 Raw slide content (every shape's text, in reading order, across the sample):
 {sample}
 
-Return the style-profile JSON matching the schema. JSON only."""
+Return the style-profile JSON matching the schema. JSON only — no preamble, no markdown fences, no commentary."""
     resp = _client.messages.create(model=_MODEL, max_tokens=2500, system=system,
                                     messages=[{"role":"user","content":user_msg}])
-    text = resp.content[0].text.strip()
-    if text.startswith("```"):
-        text = text.split("```", 2)[1]
-        if text.startswith("json"):
-            text = text[4:]
-        text = text.strip("` \n")
-    return json.loads(text)
+    text = resp.content[0].text
+    return _robust_json_parse(text)
 
 
 def extract_style_profile(pptx_paths):
