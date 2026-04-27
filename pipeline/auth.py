@@ -189,16 +189,15 @@ def render_login_gate() -> bool:
         return True
 
     # Try query-param fast-path: if ?code=... matches, auto-login.
-    # (Useful for invite links you send: https://your.app/?code=BETA2026)
+    # We KEEP the code in the URL after auto-login so that if Streamlit Cloud
+    # disconnects after idle (~5 min), the next page-load auto-logs in again
+    # — the user sees no interruption. Trade-off: code is visible in URL,
+    # but for a beta with a single global invite code that's meant to be
+    # shared anyway, this is acceptable.
     qp_code = st.query_params.get("code")
     if qp_code and qp_code.strip() == get_invite_code():
         st.session_state["auth_ok"] = True
         _ensure_user_id()
-        # Strip the code out of the URL so it isn't shoulder-surfed
-        try:
-            del st.query_params["code"]
-        except Exception:
-            pass
         st.rerun()
 
     # Otherwise render the login screen
@@ -256,6 +255,9 @@ def render_login_gate() -> bool:
                     uid = _ensure_user_id()
                     if display_name.strip():
                         set_user_name(uid, display_name.strip())
+                    # Stamp code into URL so a later disconnect/reconnect
+                    # auto-logs back in instead of bouncing to login screen.
+                    st.query_params["code"] = code
                     st.success(f"Welcome! You can build up to "
                                f"{get_max_decks()} decks. Loading...")
                     st.rerun()

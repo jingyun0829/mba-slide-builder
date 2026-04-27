@@ -31,6 +31,17 @@ from pipeline import auth as _auth
 if not _auth.render_login_gate():
     st.stop()
 
+# ── Restore navigation state from URL on (re)connect ──
+# Streamlit Cloud disconnects the WebSocket after a few minutes idle. On
+# reconnect, session_state is wiped clean. By persisting these flags in URL
+# params, the user's position in the funnel survives the disconnect — they
+# don't get bounced back to login → welcome → path-picker every time.
+if st.query_params.get("welcomed") == "1":
+    st.session_state["welcomed"] = True
+_url_mode = st.query_params.get("mode")
+if _url_mode in ("quick", "full", "outline"):
+    st.session_state["start_mode"] = _url_mode
+
 # Now safe to do heavy imports (auth passed)
 from pipeline.syllabus import generate_syllabus, save_syllabus, load_syllabus
 from pipeline.style_analyzer import extract_style_profile, save_style_profile, load_style_profile, compute_dimensions
@@ -860,6 +871,7 @@ header[data-testid="stHeader"] { background: transparent !important; }
         if st.button("Let's get started  →", type="primary", key="welcome_cta",
                      use_container_width=True):
             st.session_state["welcomed"] = True
+            st.query_params["welcomed"] = "1"  # survives reconnect
             st.rerun()
 
     # ── "Or scroll to learn more" subtle hint + feature display ──
@@ -1097,6 +1109,7 @@ if not st.session_state.get("start_mode"):
         )
         if st.button("Start →", key="start_quick", use_container_width=True, type="primary"):
             st.session_state["start_mode"] = "quick"
+            st.query_params["mode"] = "quick"
             st.rerun()
 
     with pc2:
@@ -1114,6 +1127,7 @@ if not st.session_state.get("start_mode"):
         )
         if st.button("Start →", key="start_full", use_container_width=True, type="primary"):
             st.session_state["start_mode"] = "full"
+            st.query_params["mode"] = "full"
             st.rerun()
 
     with pc3:
@@ -1130,6 +1144,7 @@ if not st.session_state.get("start_mode"):
         )
         if st.button("Start →", key="start_outline", use_container_width=True, type="primary"):
             st.session_state["start_mode"] = "outline"
+            st.query_params["mode"] = "outline"
             st.rerun()
 
     # Back link (secondary style — softer than the Start CTAs)
@@ -1139,6 +1154,8 @@ if not st.session_state.get("start_mode"):
         if st.button("← Back to welcome", key="back_to_welcome",
                      use_container_width=True, type="secondary"):
             st.session_state["welcomed"] = False
+            try: del st.query_params["welcomed"]
+            except Exception: pass
             st.rerun()
     st.stop()
 
@@ -1194,6 +1211,10 @@ if _mode:
             if st.button("↻ Change mode", key="change_mode_btn"):
                 st.session_state["welcomed"] = False
                 st.session_state["start_mode"] = None
+                # Clear from URL too so reconnects don't re-restore old state
+                for _k in ("welcomed", "mode"):
+                    try: del st.query_params[_k]
+                    except Exception: pass
                 st.rerun()
 
 # ── Per-user quota badge (beta-mode only) ──
@@ -1836,52 +1857,70 @@ if COURSE_IDX is not None:
                         f"Topics: {', '.join(s.get('topics', []))}  \n"
                         f"{tools_line}"
                     )
-        # ── Download the syllabus as PDF / Markdown ──
-        st.markdown("---")
-        st.markdown("**📥 Download this syllabus**")
-        from pipeline.syllabus_export import syllabus_to_markdown, syllabus_to_pdf
-        _safe_course_name = "".join(
-            c if c.isalnum() else "_"
-            for c in (syl_obj.get("course_title") or "syllabus")[:50]
-        ).strip("_") or "syllabus"
 
-        dl1, dl2 = st.columns(2)
-        with dl1:
+            # ── 📥 Download the syllabus as Markdown / PDF ──
+            # Wrapped in try/except so a missing syllabus_export module (e.g.
+            # if user pushed app.py but forgot to push syllabus_export.py) just
+            # shows a friendly note instead of crashing the whole tab.
+            st.markdown("---")
+            st.markdown("**📥 Download this syllabus**")
             try:
-                _md_text = syllabus_to_markdown(st.session_state["syllabus"])
-                st.download_button(
-                    "⬇ Download as Markdown (.md)",
-                    _md_text,
-                    file_name=f"{_safe_course_name}_syllabus.md",
-                    mime="text/markdown",
-                    use_container_width=True,
-                    help="Editable plain-text format. Opens in any text editor or Notion.",
-                )
-            except Exception as e:
-                st.warning(f"Markdown export failed: {e}")
-        with dl2:
-            if st.button("📄 Generate PDF", key="syl_gen_pdf",
-                         use_container_width=True,
-                         help="Renders a clean printable PDF via headless Chrome. ~10 seconds."):
-                with st.spinner("Rendering syllabus PDF..."):
+                from pipeline.syllabus_export import syllabus_to_markdown, syllabus_to_pdf
+                _safe_course_name = "".join(
+                    c if c.isalnum() else "_"
+                    for c in (syl_obj.get("course_title") or "syllabus")[:50]
+                ).strip("_") or "syllabus"
+
+                dl1, dl2 = st.columns(2)
+                with dl1:
                     try:
-                        pdf_path = f"output/{_safe_course_name}_syllabus.pdf"
-                        syllabus_to_pdf(st.session_state["syllabus"], pdf_path)
-                        st.session_state["syllabus_pdf_path"] = pdf_path
-                        st.success("✓ PDF ready below.")
+                        _md_text = syllabus_to_markdown(st.session_state["syllabus"])
+                        st.download_button(
+                            "⬇ Download as Markdown (.md)",
+                            _md_text,
+                            file_name=f"{_safe_course_name}_syllabus.md",
+                            mime="text/markdown",
+                            use_container_width=True,
+                            help="Editable plain-text format. Opens in any text editor or Notion.",
+                        )
                     except Exception as e:
-                        st.error(f"PDF generation failed: {e}")
-        # Show download button for PDF after generation
-        if (st.session_state.get("syllabus_pdf_path")
-                and Path(st.session_state["syllabus_pdf_path"]).exists()):
-            with open(st.session_state["syllabus_pdf_path"], "rb") as f:
-                st.download_button(
-                    "⬇ Download syllabus (.pdf)",
-                    f,
-                    file_name=Path(st.session_state["syllabus_pdf_path"]).name,
-                    mime="application/pdf",
-                    use_container_width=True,
+                        st.warning(f"Markdown export failed: {e}")
+                with dl2:
+                    if st.button("📄 Generate PDF", key="syl_gen_pdf",
+                                 use_container_width=True,
+                                 help="Renders a clean printable PDF via headless Chrome. ~10 seconds."):
+                        with st.spinner("Rendering syllabus PDF..."):
+                            try:
+                                Path("output").mkdir(exist_ok=True)
+                                pdf_path = f"output/{_safe_course_name}_syllabus.pdf"
+                                syllabus_to_pdf(st.session_state["syllabus"], pdf_path)
+                                st.session_state["syllabus_pdf_path"] = pdf_path
+                                st.success("✓ PDF ready — download button below.")
+                            except Exception as e:
+                                st.error(
+                                    f"PDF generation failed: `{e}`. "
+                                    "Headless Chrome may not be available on this server. "
+                                    "Markdown download (left) always works."
+                                )
+                # Show PDF download button after generation
+                if (st.session_state.get("syllabus_pdf_path")
+                        and Path(st.session_state["syllabus_pdf_path"]).exists()):
+                    with open(st.session_state["syllabus_pdf_path"], "rb") as f:
+                        st.download_button(
+                            "⬇ Download syllabus (.pdf)",
+                            f,
+                            file_name=Path(st.session_state["syllabus_pdf_path"]).name,
+                            mime="application/pdf",
+                            use_container_width=True,
+                        )
+            except ImportError as _imp_err:
+                st.error(
+                    f"⚠️ Syllabus export module not found: `{_imp_err}`. "
+                    "If you're the admin: make sure `pipeline/syllabus_export.py` "
+                    "is pushed to GitHub and the app has restarted."
                 )
+            except Exception as _gen_err:
+                st.error(f"⚠️ Download section failed to render: `{_gen_err}`")
 
         with st.expander("⚙️ Advanced — edit raw syllabus JSON", expanded=False):
             st.caption("For power users. Edit the structured fields directly if the rendered view above isn't enough.")
