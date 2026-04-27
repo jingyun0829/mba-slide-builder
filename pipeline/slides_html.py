@@ -553,8 +553,8 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
 <style>
 :root{--red:#C00000;--teal:#0d9488;--teal-dark:#042f2e;--mint:#a7f3d0;--text:#1a1a1a;--muted:#666;--bg:#fff;--footer:#94a3b8;}
 *{box-sizing:border-box;}
-html,body{margin:0;padding:0;background:#222;height:100%;font-family:-apple-system,"Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;color:var(--text);}
-.deck{position:relative;width:100%;height:100vh;}
+html,body{margin:0;padding:0;background:#0a1f1f;height:100%;font-family:-apple-system,"Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;color:var(--text);}
+.deck{position:relative;width:100%;min-height:100vh;height:100vh;}
 .slide{display:none;position:absolute;inset:0;padding:72px 96px;overflow:auto;
   background:__SLIDE_BG__;
   background-image: __SLIDE_BG_IMG__;
@@ -580,18 +580,29 @@ html,body{margin:0;padding:0;background:#222;height:100%;font-family:-apple-syst
 }
 /* ═══ TITLE SLIDE — full-bleed dark space, true center, animated orbs ═══ */
 .title-slide{
-  text-align:center; display:none; flex-direction:column;
-  justify-content:center; align-items:center;
+  text-align:center; display:none;
+  /* These three are the fix for "title not centered + black gap below":
+     position:absolute + inset:0 alone fails when the parent's height isn't
+     reliably 100vh (Streamlit iframe, PDF render, etc). Force min-height
+     here so the slide ALWAYS fills the visible area. */
+  min-height:100vh !important;
+  width:100% !important;
   background:#0a1f1f !important;
   background-image:
     radial-gradient(ellipse 80% 60% at 20% 20%, rgba(13,148,136,0.50) 0%, transparent 60%),
     radial-gradient(ellipse 70% 80% at 80% 30%, rgba(94,234,212,0.28) 0%, transparent 55%),
     radial-gradient(ellipse 60% 50% at 50% 90%, rgba(4,47,46,0.55) 0%, transparent 60%),
     linear-gradient(180deg,#062b29 0%,#0a1f1f 50%,#021614 100%) !important;
-  color:white; position:relative; overflow:hidden;
+  color:white; position:absolute; inset:0; overflow:hidden;
   padding:0 !important;
 }
-.title-slide.active{display:flex;}
+/* When active: flex container that vertically + horizontally centers .title-content */
+.title-slide.active{
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+  align-items:center !important;
+}
 .title-slide::before{
   content:""; position:absolute; top:48px; left:50%; transform:translateX(-50%);
   width:100px; height:5px;
@@ -631,6 +642,9 @@ html,body{margin:0;padding:0;background:#222;height:100%;font-family:-apple-syst
   position:relative; z-index:3;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   width:100%; padding:0 80px;
+  /* Defensive: if the outer flex centering fails (e.g. inside an iframe with
+     odd height), the content itself fills viewport and centers within. */
+  min-height:100vh;
 }
 .title-slide .title-eyebrow{
   font-family:ui-monospace,"SF Mono",Consolas,monospace;
@@ -660,14 +674,25 @@ html,body{margin:0;padding:0;background:#222;height:100%;font-family:-apple-syst
   letter-spacing:6px; text-transform:uppercase;
   font-weight:600;
 }
-.section-divider{display:none;flex-direction:column;justify-content:center;align-items:center;
+.section-divider{display:none;
+  /* Same fix as title-slide: force min-height so the slide ALWAYS fills the
+     visible area. Without this, the slide collapses to content height and
+     the body bg shows through as a dark gap below the teal header. */
+  min-height:100vh !important;
+  width:100% !important;
+  position:absolute; inset:0; padding:0 !important; overflow:hidden;
   background:linear-gradient(135deg,var(--teal) 0%,var(--teal-dark) 100%) !important;
   background-image:
     radial-gradient(circle at 80% 20%, rgba(167,243,208,0.30) 0%, transparent 50%),
     linear-gradient(135deg,var(--teal) 0%,var(--teal-dark) 100%) !important;
-  color:white;position:relative;
+  color:white;
 }
-.section-divider.active{display:flex;}
+.section-divider.active{
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+  align-items:center !important;
+}
 .section-divider::before{
   content:"";position:absolute;top:60px;left:60px;right:60px;
   height:3px;background:linear-gradient(90deg,rgba(255,255,255,0.6),transparent);
