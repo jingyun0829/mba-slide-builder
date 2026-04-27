@@ -14,7 +14,11 @@ Output: a JSON object with this exact shape:
     "..."
   ],
   "prerequisites": "string describing expected prior knowledge / tools",
-  "primary_textbook": "Full citation of the recommended textbook, or empty string if none specified",
+  "primary_textbook": "Full citation of the recommended textbook, or empty string if instructor didn't specify and you're providing recommendations below",
+  "textbook_recommendations": [
+    "Author, F. (Year). Title (Edition). Publisher.",
+    "..."
+  ],
   "assessment_summary": "e.g., 30% homework, 30% midterm, 40% final project",
   "sessions": [
     {
@@ -23,7 +27,6 @@ Output: a JSON object with this exact shape:
       "module": "Module 1: Foundations",
       "topics": ["specific topic 1", "specific topic 2"],
       "tools_or_techniques": ["Excel", "Python pandas"],
-      "suggested_readings": ["Chapter X of Textbook", "HBR article name", "recent FT piece"],
       "assessment_touchpoint": "e.g., 'HW1 released' or 'midterm' or 'none'"
     }
   ]
@@ -35,7 +38,8 @@ Rules:
 - Build complexity over time — foundations → methods → application → synthesis.
 - At least one assessment touchpoint per module.
 - For analytics/data/IS courses, every session should name specific tools or techniques.
-- Readings mix textbook chapters + recent HBR/FT/MIT Sloan Review + one current event per module when relevant.
-- If the instructor specified a recommended textbook, set the `primary_textbook` field to that citation, and lead each session's `suggested_readings` with the relevant chapter/section from that textbook (e.g., "Anderson Ch. 3.1-3.4: Numerical Measures"). Then add 1 supplemental current article per session. If no textbook was specified, leave `primary_textbook` as an empty string and use generic chapter references.
 - Learning outcomes: 4–6 total, measurable, start with action verbs.
+- **NEVER invent per-week articles, case names, or HBR/FT/MIT Sloan citations**. Do NOT include `suggested_readings` in any session. Article titles are too easy to hallucinate — instructors will add their own.
+- **`textbook_recommendations`** (top-level field): provide **2–3 widely-used, REAL textbooks** that are commonly assigned in this course area at the specified course level. Use exact citation format: `"Author Last, F. (Year). Title (Edition). Publisher."`. Examples of well-known real textbooks you SHOULD know: Anderson/Sweeney/Williams (statistics), Albright/Winston (business analytics), Brealey/Myers/Allen (corporate finance), Porter (strategy), Kotler/Keller (marketing), Krajewski/Ritzman/Malhotra (operations). If you are NOT >90% sure a textbook is real and matches the field, do NOT include it — fewer real options is better than fake ones.
+- **`primary_textbook`** (top-level field): if the instructor explicitly specified a textbook in their input, set this to their citation as-is. Otherwise, leave it as an empty string — the instructor will pick from `textbook_recommendations`.
 - No markdown, no code fences, just the JSON object.

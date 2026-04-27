@@ -1777,9 +1777,10 @@ if COURSE_IDX is not None:
         if syl_obj:
             st.markdown(f"### {syl_obj.get('course_title','(untitled)')}")
             st.caption(f"{syl_obj.get('course_level','')} · {syl_obj.get('total_weeks','')} weeks · {syl_obj.get('module_area','')}")
-            # Show primary textbook if specified
-            tb = syl_obj.get("primary_textbook") or ""
-            if tb.strip():
+            # Show primary textbook if already chosen
+            tb = (syl_obj.get("primary_textbook") or "").strip()
+            recs = syl_obj.get("textbook_recommendations") or []
+            if tb:
                 st.markdown(
                     f"<div style='margin:12px 0; padding:12px 16px; background:#ecfdf5; "
                     f"border-left:4px solid #0d9488; border-radius:8px;'>"
@@ -1788,15 +1789,52 @@ if COURSE_IDX is not None:
                     f"</div>",
                     unsafe_allow_html=True,
                 )
+                # Optional alternates
+                if recs:
+                    with st.expander(f"📚 {len(recs)} alternative textbook(s)", expanded=False):
+                        for r in recs:
+                            st.markdown(f"• {r}")
+            # No primary textbook yet — let the instructor pick one from the recommendations
+            elif recs:
+                st.markdown(
+                    "<div style='margin:14px 0 8px;'>"
+                    "<span style='color:#0d9488; font-weight:600; font-size:11pt; "
+                    "text-transform:uppercase; letter-spacing:1px;'>📖 Recommended textbooks — pick one</span>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+                st.caption(
+                    "Click a textbook below to set it as your primary textbook. "
+                    "These are widely-used real books. "
+                    "Don't see what you want? Use the Advanced editor below to type your own."
+                )
+                for i, rec in enumerate(recs):
+                    rc1, rc2 = st.columns([5, 1])
+                    with rc1:
+                        st.markdown(
+                            f"<div style='padding:10px 14px; margin:6px 0; "
+                            f"background:#f8fafc; border:1px solid #e2e8f0; "
+                            f"border-radius:8px; font-size:11.5pt; color:#0f172a;'>{rec}</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with rc2:
+                        if st.button("Use this", key=f"pick_textbook_{i}",
+                                     use_container_width=True):
+                            syl_obj["primary_textbook"] = rec
+                            new_syl = json.dumps(syl_obj, indent=2)
+                            st.session_state["syllabus"] = new_syl
+                            save_syllabus(new_syl)
+                            st.success(f"Set as primary textbook: {rec[:60]}…")
+                            st.rerun()
             with st.expander("Weekly sessions", expanded=True):
                 for s in syl_obj.get("sessions", []):
-                    readings = s.get("suggested_readings", [])
-                    readings_str = "; ".join(readings) if readings else ""
+                    tools = s.get("tools_or_techniques", [])
+                    tools_line = (f"🛠 Tools: {', '.join(tools)}  \n" if tools else "")
                     st.markdown(
                         f"**Week {s.get('week')} — {s.get('session_title')}**  \n"
                         f"_Module: {s.get('module','')}_  \n"
                         f"Topics: {', '.join(s.get('topics', []))}  \n"
-                        f"📚 Readings: {readings_str}"
+                        f"{tools_line}"
                     )
         with st.expander("⚙️ Advanced — edit raw syllabus JSON", expanded=False):
             st.caption("For power users. Edit the structured fields directly if the rendered view above isn't enough.")

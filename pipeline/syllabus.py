@@ -43,12 +43,20 @@ def generate_syllabus(
     textbook_block = ""
     if recommended_textbook and recommended_textbook.strip():
         textbook_block = (
-            f"\nRecommended textbook(s) — anchor weekly readings to this when sensible:\n"
+            f"\nRecommended textbook (provided by instructor — this IS real, use as-is):\n"
             f"{recommended_textbook.strip()}\n"
-            "Set the top-level `primary_textbook` field to this string. "
-            "In each week's `suggested_readings`, lead with the relevant chapter from this textbook "
-            "(e.g., 'Anderson Ch. 3.1-3.4: Numerical Measures'), then add 1 supplemental "
-            "current article (HBR, FT, or recent industry case)."
+            "Set the top-level `primary_textbook` field to EXACTLY this citation. "
+            "You may still leave `textbook_recommendations` as an empty list, "
+            "OR add 1-2 real alternative textbooks for completeness. "
+            "Do NOT generate per-week articles, case names, or HBR/FT references."
+        )
+    else:
+        textbook_block = (
+            "\nNo textbook was specified by the instructor. Leave `primary_textbook` "
+            "as an empty string. In `textbook_recommendations`, provide 2-3 REAL, "
+            "widely-used textbooks commonly assigned in this course area at this level — "
+            "the instructor will pick one. Use exact citation format. "
+            "Do NOT invent fake textbooks. Do NOT generate per-week articles."
         )
 
     user_msg = f"""Course description:
