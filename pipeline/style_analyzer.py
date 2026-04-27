@@ -207,12 +207,10 @@ def load_style_profile(path="style_profiles/current.json"):
     return json.loads(p.read_text()) if p.exists() else None
 
 
-def compute_dimensions(profile: dict) -> dict[str, int]:
-    """Reduce the noisy raw profile to 6 normalized 0-100 dimension scores.
-
-    These are what get plotted on the radar chart in Stage 2 — much easier
-    to read at a glance than the raw quantitative + qualitative fields.
-    """
+def _compute_auto_dimensions(profile: dict) -> dict[str, int]:
+    """The auto-detected 6 scores derived purely from the uploaded pptx files.
+    No user overrides applied. Use this when you want to know 'what the
+    teacher's actual decks look like' (vs. their manual preferences)."""
     if not profile:
         return {}
     q = profile.get("quantitative", {}) or {}
@@ -223,17 +221,15 @@ def compute_dimensions(profile: dict) -> dict[str, int]:
 
     # ----- Derived from quantitative numbers -----
     awpl = float(q.get("avg_words_per_body_line") or 12)
-    # 5 words = 100, 18 words = 0 (linear)
     concise = _clamp(100 - (awpl - 5) * (100 / 13))
 
     qtr = float(q.get("question_title_ratio") or 0)
-    questions = _clamp(qtr * 100 * 1.4)  # boost: 70% question titles → 100
+    questions = _clamp(qtr * 100 * 1.4)
 
     isr = float(q.get("image_slide_ratio") or 0)
-    visual = _clamp(isr * 100 * 1.5)  # boost: 67% image slides → 100
+    visual = _clamp(isr * 100 * 1.5)
 
     aspl = float(q.get("avg_slides_per_lecture") or 25)
-    # 50+ slides/lecture = rapid pacing; 15 = methodical
     pacing = _clamp((aspl / 50) * 100)
 
     # ----- Derived from qualitative text (keyword scoring) -----
@@ -261,6 +257,105 @@ def compute_dimensions(profile: dict) -> dict[str, int]:
     }
 
 
+def compute_dimensions(profile: dict, ignore_user_overrides: bool = False) -> dict[str, int]:
+    """Return the 6 dimension scores. Honors `profile['user_dimensions']`
+    overrides if the teacher has dragged the sliders to customize their style.
+
+    Pass ignore_user_overrides=True to get the raw auto-detected values
+    (used to display 'auto' hints next to the sliders)."""
+    auto = _compute_auto_dimensions(profile)
+    if ignore_user_overrides or not profile:
+        return auto
+    user_dims = profile.get("user_dimensions") or {}
+    if not user_dims:
+        return auto
+    # Merge: user value wins for any dim it specified, auto wins otherwise.
+    return {k: int(user_dims[k]) if k in user_dims else v for k, v in auto.items()}
+
+
+def _dimension_to_instruction(label: str, value: int) -> str:
+    """Convert a 0-100 dimension score into a natural-language style instruction
+    the LLM can act on. Returns empty string if the value is moderate (40-60),
+    since 'be average' isn't useful guidance."""
+    if 40 <= value <= 60:
+        return ""
+
+    intensity = "STRONGLY" if value >= 80 or value <= 20 else "MODERATELY"
+
+    if label == "Concise lines":
+        if value >= 60:
+            return (f"- {intensity} prefer SHORT, punchy bullet lines (5-10 words each). "
+                    "Cut filler words. Each bullet = one idea, fragment-style is OK.")
+        else:
+            return (f"- {intensity} prefer LONGER, descriptive bullet lines (15-25 words). "
+                    "Full sentences with context, not telegram fragments.")
+
+    if label == "Question-driven":
+        if value >= 60:
+            return (f"- {intensity} use QUESTION-form slide titles ('Why does X happen?', "
+                    "'What if Y?'). Aim for {pct}% of titles as questions."
+                    .format(pct=value))
+        else:
+            return (f"- {intensity} use DECLARATIVE titles ('Three causes of X', 'How Y works'). "
+                    "Avoid posing every title as a question.")
+
+    if label == "Visual-rich":
+        if value >= 60:
+            return (f"- {intensity} include MANY image-type slides ({value}% of slides should be type='image' "
+                    "with diagram-worthy image_hint). Visuals carry the lecture, text supports.")
+        else:
+            return (f"- {intensity} keep image slides RARE ({value}% max). Text + bullets carry the lecture; "
+                    "use images only when truly necessary.")
+
+    if label == "Rapid pacing":
+        if value >= 60:
+            return (f"- {intensity} use RAPID PACING — many short slides (40+ per 90 min lecture). "
+                    "Each slide = one focused idea, advance quickly.")
+        else:
+            return (f"- {intensity} use METHODICAL PACING — fewer, denser slides (15-22 per 90 min). "
+                    "Each slide explores an idea more thoroughly.")
+
+    if label == "Conversational":
+        if value >= 60:
+            return (f"- {intensity} use CONVERSATIONAL tone — 'we', 'you', 'imagine', informal phrasing. "
+                    "Address the student directly. Sound like a friendly mentor, not a textbook.")
+        else:
+            return (f"- {intensity} use FORMAL ACADEMIC tone — third person, precise vocabulary, "
+                    "no 'we'/'you'. Sound like a published textbook.")
+
+    if label == "Real-case heavy":
+        if value >= 60:
+            return (f"- {intensity} ground every concept in REAL COMPANIES / CASES (Amazon, Tesla, Netflix, "
+                    "specific named situations). Avoid generic 'a company', use named examples.")
+        else:
+            return (f"- {intensity} keep examples ABSTRACT and theoretical. Use 'a firm', 'a manager', "
+                    "generic scenarios over named-company cases.")
+
+    return ""
+
+
+def _user_dimensions_to_prompt_block(dims: dict) -> str:
+    """Convert the user's 6 customized dimension scores into prompt instructions.
+    These take precedence over the auto-detected style — if the user dragged the
+    'Visual-rich' slider to 90 even though their old decks scored 30, the AI
+    should generate visual-heavy slides."""
+    if not dims:
+        return ""
+    instructions = []
+    for label, value in dims.items():
+        instr = _dimension_to_instruction(label, value)
+        if instr:
+            instructions.append(instr)
+    if not instructions:
+        return ""
+    return (
+        "\n\n=== INSTRUCTOR'S STYLE PREFERENCES (override the auto-detected style above) ===\n"
+        "The instructor manually adjusted these dials in Stage 2. Honor them OVER what their\n"
+        "old decks suggest — they're telling you how they WANT to teach, not how they used to.\n\n"
+        + "\n".join(instructions)
+    )
+
+
 def profile_to_prompt_block(profile):
     if not profile:
         return ""
@@ -286,4 +381,10 @@ def profile_to_prompt_block(profile):
         lines.append(f"- {key}: {val}")
     lines.append("")
     lines.append("Critical: build the deck as a narrative of many short slides, NOT a few dense slides. Mirror the titling voice, line length, and image rhythm. Do NOT produce mechanical labels like 'Topic — key points'.")
-    return "\n".join(lines)
+    block = "\n".join(lines)
+
+    # Append user-customized dimension overrides if the teacher dragged sliders
+    user_dims = profile.get("user_dimensions") or {}
+    if user_dims:
+        block += _user_dimensions_to_prompt_block(user_dims)
+    return block

@@ -2050,6 +2050,67 @@ if STYLE_IDX is not None:
                 unsafe_allow_html=True,
             )
 
+        # ════════════════════════════════════════════════════════════
+        #  🎚 Customize your style preferences
+        #  Lets the teacher manually push any dimension up/down so the
+        #  AI generates slides toward their PREFERRED style, not just a
+        #  copy of their old decks. The radar above re-renders on change.
+        # ════════════════════════════════════════════════════════════
+        from pipeline.style_analyzer import _compute_auto_dimensions
+        auto_dims = _compute_auto_dimensions(profile)
+        st.markdown("---")
+        sc1, sc2 = st.columns([3, 1])
+        with sc1:
+            st.markdown("### 🎚 Customize your style preferences")
+            st.caption(
+                "Drag any slider to push the AI toward a different teaching style. "
+                "The radar above updates as you adjust. The small **auto** value is "
+                "what we detected from your uploaded decks — you can keep, push higher, or lower."
+            )
+        with sc2:
+            st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+            if st.button("↻ Reset to detected", key="reset_style_dims",
+                         use_container_width=True,
+                         help="Discard your manual adjustments and restore the auto-detected values."):
+                profile.pop("user_dimensions", None)
+                save_style_profile(profile)
+                # Clear slider widget state too so they snap back
+                for _key in list(st.session_state.keys()):
+                    if _key.startswith("dim_slider_"):
+                        del st.session_state[_key]
+                st.rerun()
+
+        # 6 sliders in 2 columns — current values come from `dims` (which
+        # honors user_dimensions). Captions show auto-detected for reference.
+        slider_cols = st.columns(2)
+        new_dims = {}
+        dim_labels = list(dims.keys())
+        for i, label in enumerate(dim_labels):
+            with slider_cols[i % 2]:
+                auto_val = auto_dims.get(label, 50)
+                new_val = st.slider(
+                    label,
+                    min_value=0, max_value=100,
+                    value=int(dims.get(label, auto_val)),
+                    step=5,
+                    key=f"dim_slider_{i}",
+                    help=f"Auto-detected: {auto_val}/100",
+                )
+                # Show "auto" hint as a small caption under the slider
+                if new_val != auto_val:
+                    delta = new_val - auto_val
+                    arrow = "↑" if delta > 0 else "↓"
+                    st.caption(f"_Auto: {auto_val}/100 · You: {new_val}/100  {arrow}{abs(delta)}_")
+                else:
+                    st.caption(f"_Auto-detected: {auto_val}/100_")
+                new_dims[label] = new_val
+
+        # Persist user overrides if they differ from current dims
+        if new_dims != dims:
+            profile["user_dimensions"] = new_dims
+            save_style_profile(profile)
+            st.rerun()
+
         # ---------- Style summary card ----------
         summary = qual.get("teaching_style_summary") or qual.get("tone") or ""
         if summary:
