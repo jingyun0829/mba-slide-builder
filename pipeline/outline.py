@@ -73,7 +73,8 @@ def generate_outline(topic, objectives, rough_notes, module, duration_minutes,
                      target_slides=None, include_code=False, include_homework=False,
                      include_activity=False, version_angle: str | None = None,
                      prior_memory: list | None = None, include_recap: bool = True,
-                     audience_level: str = "standard"):
+                     audience_level: str = "standard",
+                     primary_textbook: str = ""):
     style_block = ""
     if style_profile:
         from pipeline.style_analyzer import profile_to_prompt_block
@@ -84,8 +85,30 @@ def generate_outline(topic, objectives, rough_notes, module, duration_minutes,
         from pipeline.course_memory import memory_to_prompt_block
         memory_block = memory_to_prompt_block(prior_memory, include_recap=include_recap)
 
-    # Combine style + memory into the system prompt's extra section
-    system_extras = "\n\n".join(b for b in [style_block, memory_block] if b)
+    # Anchor source citations to the syllabus's verified primary textbook so
+    # Claude doesn't have to guess / hallucinate. If empty, sourcing prompt
+    # tells Claude to fall back to foundational papers + named frameworks only.
+    textbook_block = ""
+    if primary_textbook and primary_textbook.strip():
+        textbook_block = (
+            f"\nPRIMARY_TEXTBOOK (use this as the anchor for slide-level `source` "
+            f"citations whenever the slide content maps to a chapter):\n"
+            f"{primary_textbook.strip()}\n"
+            f"Format chapter citations as: '<Author Last> Ch. <number>: <topic>'. "
+            f"Example: 'Anderson Ch. 4.6: Bayes' Theorem'. "
+            f"For topics NOT in this textbook, fall back to foundational papers / "
+            f"named frameworks per the SOURCING rules. NEVER fabricate a chapter."
+        )
+    else:
+        textbook_block = (
+            "\nNo primary textbook specified. For slide-level `source` field, ONLY "
+            "cite foundational papers (e.g. 'Akerlof (1970)') or named frameworks "
+            "('Porter's 5 Forces') that you are >95% certain are real. "
+            "When unsure, use empty string."
+        )
+
+    # Combine style + memory + textbook into the system prompt's extra section
+    system_extras = "\n\n".join(b for b in [style_block, memory_block, textbook_block] if b)
     system = _load_system(module, system_extras)
 
     examples_block = ""
@@ -143,5 +166,11 @@ Return a JSON outline matching the schema. JSON only — no prose, no fences."""
     resp = _client.messages.create(model=_MODEL, max_tokens=12000, system=system,
                                     messages=[{"role":"user","content":user_msg}])
     text = _strip_fences(resp.content[0].text)
-    json.loads(text)
+    parsed = json.loads(text)
+    # Stamp the primary_textbook into the outline so build_html can use it
+    # for the aggregated References slide. Doesn't override if Claude already
+    # included one (it shouldn't — we only ask for slide-level sources).
+    if primary_textbook and primary_textbook.strip() and not parsed.get("primary_textbook"):
+        parsed["primary_textbook"] = primary_textbook.strip()
+        text = json.dumps(parsed, indent=2)
     return text

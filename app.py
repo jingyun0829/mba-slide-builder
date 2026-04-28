@@ -1494,7 +1494,14 @@ if QUICK_IDX is not None:
                     except Exception as e:
                         st.warning(f"Style extraction failed ({e}). Building with default style.")
 
-            # Step 2: generate outline (no syllabus, no course memory)
+            # Step 2: generate outline (no syllabus, no course memory).
+            # Even in Quick mode, if the syllabus has a primary textbook
+            # already saved, we use it for source anchoring.
+            try:
+                _q_syl = json.loads(st.session_state.get("syllabus") or "{}")
+                _q_textbook = (_q_syl.get("primary_textbook") or "").strip()
+            except Exception:
+                _q_textbook = ""
             with st.spinner("Drafting outline..."):
                 try:
                     outline_json = generate_outline(
@@ -1512,6 +1519,7 @@ if QUICK_IDX is not None:
                         prior_memory=None,
                         include_recap=False,
                         audience_level=q_audience,
+                        primary_textbook=_q_textbook,
                     )
                     st.session_state["outline"] = outline_json
                 except Exception as e:
@@ -2288,6 +2296,13 @@ if OUTLINE_IDX is not None:
                 st.session_state["examples"] = examples
             with st.spinner("Drafting outline (style-aware, memory-aware)..."):
                 obj_list = [o.strip() for o in objectives.splitlines() if o.strip()]
+                # Pull primary textbook from syllabus so per-slide sources can
+                # cite specific chapters of a verified-real book.
+                try:
+                    _full_syl = json.loads(st.session_state.get("syllabus") or "{}")
+                    _full_textbook = (_full_syl.get("primary_textbook") or "").strip()
+                except Exception:
+                    _full_textbook = ""
                 outline_json = generate_outline(
                     topic=topic, objectives=obj_list, rough_notes=rough_notes,
                     module=module, duration_minutes=duration,
@@ -2300,6 +2315,7 @@ if OUTLINE_IDX is not None:
                     prior_memory=_prior_mem,
                     include_recap=bool(include_recap),
                     audience_level=audience_level,
+                    primary_textbook=_full_textbook,
                 )
                 st.session_state["outline"] = outline_json
                 # Auto-save memory for THIS session (only if we know which week it is)

@@ -63,6 +63,15 @@ def _render_title_slide(session_title, duration):
   </div>
 </section>'''
 
+def _render_source_html(slide):
+    """Render the slide's source citation as a small italic line at bottom-right.
+    Empty if source is missing or blank — we never invent placeholder citations."""
+    src = (slide.get("source") or "").strip()
+    if not src:
+        return ""
+    return f'<div class="slide-source">📖 {_esc(src)}</div>'
+
+
 def _render_content_slide(slide):
     title = slide.get("title","")
     lines = slide.get("lines", []) or []
@@ -74,6 +83,7 @@ def _render_content_slide(slide):
         f'<div class="key-takeaway"><div class="key-takeaway-text">{_esc(kt)}</div></div>'
         if kt and kt.strip() else ""
     )
+    source = _render_source_html(slide)
     return f'''<section class="slide content-slide" data-type="{_esc(stype)}">
   <h2 class="slide-title">{icon}<span>{_esc(title)}</span></h2>
   <div class="slide-title-accent"></div>
@@ -81,13 +91,16 @@ def _render_content_slide(slide):
     {body}
   </div>
   {takeaway}
+  {source}
 </section>'''
 
 def _render_code_step_slide(step_title, code, language, explanation="",
-                              group_id="", step_idx=1):
+                              group_id="", step_idx=1, source=""):
     expl_html = ""
     if explanation and explanation.strip():
         expl_html = f'<div class="code-explanation">{_esc(explanation.strip())}</div>'
+    source_html = (f'<div class="slide-source">📖 {_esc(source.strip())}</div>'
+                   if source and source.strip() else "")
     runnable = language.lower() == "python"
     run_html = ""
     if runnable:
@@ -106,18 +119,21 @@ def _render_code_step_slide(step_title, code, language, explanation="",
   <pre><code class="language-{_esc(language)}">{_esc(code)}</code></pre>
   {run_html}
   {expl_html}
+  {source_html}
 </section>'''
 
 def _render_code_slides(slide):
     co = slide.get("code") or {}
     lang = co.get("language","python")
     steps = co.get("steps") or []
+    src = slide.get("source", "")
     out = []
     if not steps:
         raw = co.get("content","")
         if raw:
             out.append(_render_code_step_slide(slide.get("title","Code"), raw, lang,
-                                               explanation=co.get("caption","")))
+                                               explanation=co.get("caption",""),
+                                               source=src))
         return out
     # Generate a stable group id so all steps in this code block share it.
     # Stable across calls: hash of the first step's description + first 40 chars of code.
@@ -133,9 +149,12 @@ def _render_code_slides(slide):
         if not code_text:
             continue
         explanation = ((s or {}).get("explanation") or "").strip()
+        # Only show source on the FIRST code step (avoid spam across multi-step blocks)
+        step_src = src if idx == 1 else ""
         out.append(_render_code_step_slide(desc, code_text, lang,
                                             explanation=explanation,
-                                            group_id=group_id, step_idx=idx))
+                                            group_id=group_id, step_idx=idx,
+                                            source=step_src))
     return out
 
 def _hint_to_text_lines(hint: str) -> list:
@@ -253,10 +272,12 @@ def _render_image_slide(slide, precomputed=None):
             "lines": _hint_to_text_lines(hint),
         })
 
+    source_html = _render_source_html(slide)
     return f'''<section class="slide image-slide" data-type="image">
   <h2 class="slide-title">{_icon_html("image")}<span>{_esc(title)}</span></h2>
   <div class="slide-title-accent"></div>
   {body}
+  {source_html}
 </section>'''
 
 
@@ -445,6 +466,38 @@ def _render_activity_slides(activity):
         }))
 
     return out
+
+
+def _render_references_slide(slides_list, primary_textbook=""):
+    """Aggregate all unique `source` values from the slides + primary textbook
+    into a single end-of-deck References slide. Empty/missing sources are
+    skipped. Returns empty string if there's nothing to cite (so we don't
+    render a blank slide)."""
+    seen = set()
+    refs = []
+    # Lead with the primary textbook if it exists (it's the anchor)
+    if primary_textbook and primary_textbook.strip():
+        norm = primary_textbook.strip()
+        seen.add(norm.lower())
+        refs.append({"text": f"📖 {norm}", "bold": True})
+    # Then unique slide-level sources, in the order they first appear
+    for s in (slides_list or []):
+        src = (s.get("source") or "").strip()
+        if not src:
+            continue
+        key = src.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        refs.append(src)
+    if len(refs) <= (1 if primary_textbook else 0):
+        # Only the textbook (or nothing) — no point in a References slide
+        return ""
+    return _render_content_slide({
+        "type": "summary",
+        "title": "References",
+        "lines": refs,
+    })
 
 
 def _render_homework_slides(hw):
@@ -804,6 +857,33 @@ html,body{margin:0;padding:0;background:#0a1f1f;
   position:relative;
   z-index:1;
 }
+/* Source citation — small, italic, bottom-right of each slide. Sits ABOVE the
+   deck-footer (page numbers) so the two don't collide. Subtle gray + serif so
+   it reads as "academic citation" rather than a UI element. */
+.slide-source{
+  position:absolute;
+  bottom:50px;  /* above the page-number footer (which is at bottom:18px) */
+  right:72px;
+  max-width:60%;
+  text-align:right;
+  font-family:'Source Serif Pro',Georgia,serif;
+  font-size:11pt;
+  font-style:italic;
+  color:#64748b;
+  line-height:1.3;
+  opacity:0.85;
+  letter-spacing:0.2px;
+}
+/* On dark slide types (title, divider) we don't show source, but if it leaks
+   into a question/example slide make sure it's still readable. */
+.slide[data-type="question"] .slide-source,
+.slide[data-type="example"] .slide-source,
+.slide[data-type="discussion"] .slide-source,
+.slide[data-type="summary"] .slide-source{ color:#475569; }
+/* In print mode, sources stay visible but slightly smaller */
+@media print{
+  .slide-source{font-size:9pt;bottom:30px;right:0.6in;}
+}
 .deck-footer{position:absolute;bottom:18px;left:72px;right:72px;display:flex;justify-content:space-between;align-items:center;font-size:11pt;color:var(--footer);font-family:ui-monospace,"SF Mono",Consolas,monospace;border-top:1px solid #e5e7eb;padding-top:8px;letter-spacing:0.3px;}
 .deck-footer .session{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:20px;}
 .deck-footer .pages{flex-shrink:0;}
@@ -1091,6 +1171,15 @@ def build_html(outline_json, output_path, image_mode="search", theme="light_gray
         slides_out.extend(_render_activity_slides(outline["activity"]))
     if outline.get("homework"):
         slides_out.extend(_render_homework_slides(outline["homework"]))
+
+    # ── References slide — aggregates all unique slide-level sources ──
+    # Goes at the very end so students/instructors get a one-page bibliography.
+    refs_slide = _render_references_slide(
+        slides_list,
+        primary_textbook=outline.get("primary_textbook", ""),
+    )
+    if refs_slide:
+        slides_out.append(refs_slide)
 
     # === D) Footer pass: inject session title + page number into each slide ===
     session_title = outline.get("session_title", "")

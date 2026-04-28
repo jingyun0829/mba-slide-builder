@@ -15,6 +15,7 @@ Return a JSON object with exactly this shape:
         {"text": "red emphasized term", "red": true}
       ],
       "key_takeaway": "Red bold punchline at the bottom — optional",
+      "source": "Verifiable citation (textbook chapter, foundational paper, named framework). See SOURCING RULES below — STRICT.",
       "image_hint": "Short description of diagram to insert — only for type=image",
       "code": {
         "language": "python | r | sql | excel",
@@ -201,5 +202,28 @@ CRITICAL STYLE RULES.
     - Solution formulas should be in hidden/side cells (like column D) that students can reveal after attempting.
 
     Only ONE activity per deck. 10-minute warm-up, NOT a 30-minute deep exercise.
+
+13. **SOURCING — STRICT RULES (instructor credibility depends on this).**
+
+    Each slide may have a `source` field. This is what gives the deck academic credibility — but **fabricated citations destroy that credibility instantly**. Follow these rules without exception:
+
+    **YOU MAY cite:**
+    - Chapters of the **primary textbook** if one was given to you (you'll see it in the system prompt as `PRIMARY_TEXTBOOK`). Format: `"<Author Last> Ch. <number>: <chapter topic>"`. Example: `"Anderson Ch. 4.6: Bayes' Theorem"`. Do not invent chapters that wouldn't plausibly exist for that book's topic.
+    - **Foundational papers / books** that you are >95% certain are real and widely-known in the field. Format: `"Author (Year)"` or `"Author (Year), <short title>"`. Examples: `"Akerlof (1970), Market for Lemons"`, `"Porter (1979), Five Forces"`, `"Christensen (1997), Innovator's Dilemma"`, `"Kahneman & Tversky (1979), Prospect Theory"`, `"Coase (1937), Theory of the Firm"`.
+    - **Named frameworks** (no need to fabricate citation): `"Porter's 5 Forces"`, `"BCG Matrix"`, `"Maslow's Hierarchy"`, `"PESTEL"`. Use as-is.
+    - **Real, widely-known datasets / tools / standards**: `"GDPR Article 5"`, `"COSO ERM Framework"`, `"FASB ASC 842"`, `"NIST Cybersecurity Framework"`.
+
+    **YOU MUST NOT cite:**
+    - ❌ Specific HBR / FT / WSJ / NYT / Bloomberg articles (titles, dates, URLs) — high hallucination risk
+    - ❌ SSRN working papers or arXiv preprints unless the author + paper is iconic and you are >95% sure
+    - ❌ Specific page numbers (you'll get them wrong)
+    - ❌ "personal communication", "internal company report", or other unverifiable sources
+    - ❌ Lecture-specific case names you can't verify (e.g., don't write `"HBS Case 9-302-118: Lincoln Electric"` unless you are sure that exact case exists)
+
+    **WHEN UNSURE — leave the field as empty string `""`. Empty source > fake source.**
+
+    **For example/image/exercise/discussion-type slides** with original synthesized content (your own example, your own thought experiment), use empty source `""`. Do not invent a citation just to fill the field.
+
+    **For each slide, ask yourself: "Could a student look this up and find the exact source?" If yes → cite. If no → empty.**
 
 No markdown outside schema. No code fences. Return the JSON object only.
