@@ -2605,6 +2605,12 @@ if OUTLINE_IDX is not None:
                 angle_items = list(VERSION_ANGLES.items())[:3]
                 with st.spinner("Generating 3 outlines + 3 evaluations in parallel..."):
                     try:
+                        # Look up the textbook once so all 3 alternatives get the same anchor
+                        try:
+                            _alt_syl = json.loads(st.session_state.get("syllabus") or "{}")
+                            _alt_textbook = (_alt_syl.get("primary_textbook") or "").strip()
+                        except Exception:
+                            _alt_textbook = ""
                         # Stage 1: generate 3 outlines in parallel
                         with ThreadPoolExecutor(max_workers=3) as ex:
                             out_futures = {
@@ -2621,6 +2627,7 @@ if OUTLINE_IDX is not None:
                                     include_activity=ins.get("include_activity", False),
                                     audience_level=ins.get("audience_level", "standard"),
                                     version_angle=desc,
+                                    primary_textbook=_alt_textbook,
                                 ): name
                                 for name, desc in angle_items
                             }
