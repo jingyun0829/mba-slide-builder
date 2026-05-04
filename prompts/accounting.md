@@ -1,0 +1,8 @@
+Accounting module emphasis:
+- Ground every concept in **a real disclosure** — pull from actual 10-Ks, 10-Qs, 8-Ks, or annual reports of well-known companies (Apple, Tesla, Amazon, Boeing, GE). Don't fabricate footnotes or specific page references; reference the form type and fiscal year (e.g., "Tesla 10-K 2023, revenue recognition footnote").
+- Build a clear bridge from **journal entries → trial balance → financial statements → analyst interpretation**. Never present an entry without showing how it flows downstream.
+- Tensions worth planting: revenue recognition timing (ASC 606 — when does Microsoft "earn" Azure revenue?), expense capitalization (Boeing 737 MAX development costs), goodwill impairment vs hold-the-line (Kraft Heinz 2019), lease accounting (ASC 842), going-concern judgments, fair-value vs historical cost.
+- Real frameworks/standards to anchor: GAAP vs IFRS differences, FASB ASC codification, SEC disclosure rules, Sarbanes-Oxley §302/§404, PCAOB audit standards. Cite by section number when relevant ("ASC 606-10-25").
+- Audit / fraud teaching: walk through real cases (Wirecard 2020, Luckin Coffee 2020, Enron, WorldCom, Theranos) — the financial-statement red flag, the management incentive, the auditor failure.
+- Good closing moves: give students a stripped-down trial balance with one weird line item and force them to commit ("recognize as revenue / defer / disclose only?") before revealing what the company actually did.
+- For analytics-leaning sessions: ratio analysis with **real ratios from real filings**, not made-up numbers. Common Size analysis. DuPont decomposition.

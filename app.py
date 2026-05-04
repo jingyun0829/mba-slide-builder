@@ -61,7 +61,7 @@ from pipeline.course_memory import (
 )
 from concurrent.futures import ThreadPoolExecutor
 
-MODULE_AREAS = ["analytics","information_systems","statistics","strategy","finance","marketing","operations"]
+MODULE_AREAS = ["analytics","information_systems","statistics","strategy","finance","accounting","economics","marketing","operations"]
 
 # ---------- Custom CSS for a more polished look ----------
 st.markdown("""
@@ -2424,6 +2424,13 @@ if OUTLINE_IDX is not None:
                         new_kt = st.text_input("Key takeaway (red 30pt) — optional",
                                                value=s.get("key_takeaway",""), key=f"kt_{i}")
 
+                        new_source = st.text_input(
+                            "📖 Source / citation — optional (real reference only)",
+                            value=s.get("source",""), key=f"src_{i}",
+                            help="e.g., 'Anderson Ch. 4.6: Bayes' Theorem' or 'Akerlof (1970), Lemons'. "
+                                 "Leave blank if you don't have a verified source — empty is better than fake.",
+                        )
+
                         new_hint = None
                         new_code_obj = None
                         if new_type == "image":
@@ -2451,6 +2458,8 @@ if OUTLINE_IDX is not None:
                             updated["lines"] = [l for l in parsed if l is not None]
                             if new_kt.strip():
                                 updated["key_takeaway"] = new_kt.strip()
+                            if new_source.strip():
+                                updated["source"] = new_source.strip()
                             if new_type == "image" and new_hint is not None:
                                 updated["image_hint"] = new_hint
                             if new_type == "code" and new_code_obj is not None:
@@ -2491,6 +2500,12 @@ if OUTLINE_IDX is not None:
                             st.markdown(
                                 f"<div style='margin-top:10px; padding:10px; border-left:4px solid #0d9488; "
                                 f"color:#0d9488; font-weight:bold; font-size:1.1em;'>{s['key_takeaway']}</div>",
+                                unsafe_allow_html=True,
+                            )
+                        if s.get("source"):
+                            st.markdown(
+                                f"<div style='margin-top:8px; font-style:italic; font-size:0.9em; "
+                                f"color:#64748b;'>📖 {s['source']}</div>",
                                 unsafe_allow_html=True,
                             )
                         if s.get("image_hint"):

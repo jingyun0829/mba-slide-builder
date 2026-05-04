@@ -8,7 +8,7 @@ Output: a JSON object with this exact shape:
   "course_title": "string",
   "course_level": "undergraduate | mba | executive",
   "total_weeks": 14,
-  "module_area": "analytics | strategy | finance | marketing | operations | information_systems | statistics",
+  "module_area": "analytics | strategy | finance | accounting | economics | marketing | operations | information_systems | statistics",
   "learning_outcomes": [
     "By the end of this course, students will be able to ...",
     "..."
