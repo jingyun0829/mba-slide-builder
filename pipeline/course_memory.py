@@ -21,7 +21,13 @@ from anthropic import Anthropic
 
 _client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 _MODEL = os.getenv("ANTHROPIC_MEMORY_MODEL", "claude-haiku-4-5-20251001")
-_MEMORY_DIR = Path("course_memory")
+_MEMORY_DIR = Path("course_memory")  # legacy default — prefer per-user dirs
+
+def _user_memory_dir(user_id: str = "") -> Path:
+    """Per-user memory folder so each tester sees only their own course history."""
+    if user_id:
+        return Path(f"course_memory/{user_id}")
+    return _MEMORY_DIR
 
 
 _EXTRACT_SYSTEM = """You read a session outline and extract a compact "course memory" entry.
@@ -60,21 +66,23 @@ def extract_session_memory(outline_json: str) -> dict:
     return json.loads(text)
 
 
-def save_session_memory(week: int, session_title: str, memory: dict) -> Path:
+def save_session_memory(week: int, session_title: str, memory: dict, user_id: str = "") -> Path:
     """Save memory for one week as week_NN.json. Returns the file path."""
-    _MEMORY_DIR.mkdir(parents=True, exist_ok=True)
+    mem_dir = _user_memory_dir(user_id)
+    mem_dir.mkdir(parents=True, exist_ok=True)
     payload = {"week": week, "session_title": session_title, **memory}
-    path = _MEMORY_DIR / f"week_{week:02d}.json"
+    path = mem_dir / f"week_{week:02d}.json"
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
     return path
 
 
-def load_prior_memory(up_to_week: int) -> list[dict]:
+def load_prior_memory(up_to_week: int, user_id: str = "") -> list[dict]:
     """Load saved DETAILED memory entries for weeks BEFORE up_to_week. Sorted by week."""
-    if not _MEMORY_DIR.exists():
+    mem_dir = _user_memory_dir(user_id)
+    if not mem_dir.exists():
         return []
     out = []
-    for p in sorted(_MEMORY_DIR.glob("week_*.json")):
+    for p in sorted(mem_dir.glob("week_*.json")):
         m = re.match(r"week_(\d+)\.json", p.name)
         if not m:
             continue
@@ -102,9 +110,10 @@ def _syllabus_session_to_memory(session: dict) -> dict:
     }
 
 
-def load_prior_memory_with_syllabus(up_to_week: int, syllabus_obj: dict | None = None) -> list[dict]:
+def load_prior_memory_with_syllabus(up_to_week: int, syllabus_obj: dict | None = None,
+                                     user_id: str = "") -> list[dict]:
     """Load DETAILED memory; fill gaps using syllabus topics so every prior week has SOMETHING."""
-    detailed = {m["week"]: m for m in load_prior_memory(up_to_week) if m.get("week")}
+    detailed = {m["week"]: m for m in load_prior_memory(up_to_week, user_id=user_id) if m.get("week")}
 
     out = []
     if syllabus_obj and syllabus_obj.get("sessions"):
@@ -122,12 +131,13 @@ def load_prior_memory_with_syllabus(up_to_week: int, syllabus_obj: dict | None =
     return out
 
 
-def list_all_memory() -> list[dict]:
+def list_all_memory(user_id: str = "") -> list[dict]:
     """List all saved memory entries (for the UI to display)."""
-    if not _MEMORY_DIR.exists():
+    mem_dir = _user_memory_dir(user_id)
+    if not mem_dir.exists():
         return []
     out = []
-    for p in sorted(_MEMORY_DIR.glob("week_*.json")):
+    for p in sorted(mem_dir.glob("week_*.json")):
         try:
             out.append(json.loads(p.read_text()))
         except Exception:
@@ -135,12 +145,13 @@ def list_all_memory() -> list[dict]:
     return out
 
 
-def clear_memory() -> int:
-    """Delete all memory files. Returns count deleted."""
-    if not _MEMORY_DIR.exists():
+def clear_memory(user_id: str = "") -> int:
+    """Delete all memory files for this user. Returns count deleted."""
+    mem_dir = _user_memory_dir(user_id)
+    if not mem_dir.exists():
         return 0
     count = 0
-    for p in _MEMORY_DIR.glob("week_*.json"):
+    for p in mem_dir.glob("week_*.json"):
         p.unlink()
         count += 1
     return count

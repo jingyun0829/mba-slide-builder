@@ -196,14 +196,26 @@ def extract_style_profile(pptx_paths):
     return {"quantitative": quant, "qualitative": qual, "sources": [Path(p).name for p in pptx_paths]}
 
 
-def save_style_profile(profile, path="style_profiles/current.json"):
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(json.dumps(profile, indent=2))
-    return path
+def _resolve_style_path(user_id: str = "", path: str = "") -> Path:
+    """Per-user style profile path. Falls back to a shared default ONLY if
+    no user_id is provided (backward compat for any caller that hasn't been
+    updated yet)."""
+    if path:
+        return Path(path)
+    if user_id:
+        return Path(f"style_profiles/{user_id}/current.json")
+    return Path("style_profiles/current.json")
 
 
-def load_style_profile(path="style_profiles/current.json"):
-    p = Path(path)
+def save_style_profile(profile, user_id: str = "", path: str = ""):
+    p = _resolve_style_path(user_id, path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(profile, indent=2))
+    return str(p)
+
+
+def load_style_profile(user_id: str = "", path: str = ""):
+    p = _resolve_style_path(user_id, path)
     return json.loads(p.read_text()) if p.exists() else None
 
 

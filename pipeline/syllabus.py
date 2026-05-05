@@ -82,12 +82,23 @@ Return the syllabus JSON matching the schema. JSON only — no prose, no fences.
     return text
 
 
-def save_syllabus(syllabus_json: str, path: str = "syllabi/current.json") -> str:
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(syllabus_json)
-    return path
+def _resolve_syllabus_path(user_id: str = "", path: str = "") -> Path:
+    """Per-user syllabus path. Each tester gets their own folder so they
+    don't see each other's drafts on login."""
+    if path:
+        return Path(path)
+    if user_id:
+        return Path(f"syllabi/{user_id}/current.json")
+    return Path("syllabi/current.json")
 
 
-def load_syllabus(path: str = "syllabi/current.json") -> str | None:
-    p = Path(path)
+def save_syllabus(syllabus_json: str, user_id: str = "", path: str = "") -> str:
+    p = _resolve_syllabus_path(user_id, path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(syllabus_json)
+    return str(p)
+
+
+def load_syllabus(user_id: str = "", path: str = "") -> str | None:
+    p = _resolve_syllabus_path(user_id, path)
     return p.read_text() if p.exists() else None

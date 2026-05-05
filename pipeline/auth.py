@@ -152,6 +152,13 @@ def _ensure_user_id() -> str:
     return new_id
 
 
+def get_user_id() -> str:
+    """Public accessor for the current user's stable id. Used to namespace
+    persisted files (syllabus, style profile, course memory) so users don't
+    see each other's data."""
+    return _ensure_user_id()
+
+
 def is_authenticated() -> bool:
     return bool(st.session_state.get("auth_ok"))
 

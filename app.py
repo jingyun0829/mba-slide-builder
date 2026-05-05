@@ -643,10 +643,14 @@ body:has(.welcome-wrap) { overflow-x: hidden; }
 
 for k in ("syllabus","style_profile","outline","outline_inputs","examples","html_path","dataset_path","activity_path","pdf_path","last_eval","alternatives","alt_html_paths","intro_video_path","intro_video_meta","study_guide_path","study_guide_meta"):
     st.session_state.setdefault(k, None)
+# Per-user namespace for ALL persisted state (syllabus, style profile, course
+# memory, output files). Each tester has their own folder so they never see
+# each other's drafts on login.
+_uid = _auth.get_user_id()
 if st.session_state["syllabus"] is None:
-    st.session_state["syllabus"] = load_syllabus()
+    st.session_state["syllabus"] = load_syllabus(user_id=_uid)
 if st.session_state["style_profile"] is None:
-    st.session_state["style_profile"] = load_style_profile()
+    st.session_state["style_profile"] = load_style_profile(user_id=_uid)
 st.session_state.setdefault("welcomed", False)
 
 # ---------- Welcome / landing page (shown until user clicks "Get started") ----------
@@ -1799,7 +1803,7 @@ if COURSE_IDX is not None:
                     extra_notes=extra_notes,
                     recommended_textbook=recommended_textbook,
                 )
-                st.session_state["syllabus"] = syl; save_syllabus(syl); st.success("Saved.")
+                st.session_state["syllabus"] = syl; save_syllabus(syl, user_id=_uid); st.success("Saved.")
     if st.session_state["syllabus"]:
         try: syl_obj = json.loads(st.session_state["syllabus"])
         except: syl_obj = None
@@ -1852,7 +1856,7 @@ if COURSE_IDX is not None:
                             syl_obj["primary_textbook"] = rec
                             new_syl = json.dumps(syl_obj, indent=2)
                             st.session_state["syllabus"] = new_syl
-                            save_syllabus(new_syl)
+                            save_syllabus(new_syl, user_id=_uid)
                             st.success(f"Set as primary textbook: {rec[:60]}…")
                             st.rerun()
             with st.expander("Weekly sessions", expanded=True):
@@ -1934,7 +1938,7 @@ if COURSE_IDX is not None:
             st.caption("For power users. Edit the structured fields directly if the rendered view above isn't enough.")
             edited = st.text_area("Syllabus JSON", value=st.session_state["syllabus"], height=400, label_visibility="collapsed")
             if st.button("Save edits", key="save_syl"):
-                st.session_state["syllabus"] = edited; save_syllabus(edited); st.success("Saved.")
+                st.session_state["syllabus"] = edited; save_syllabus(edited, user_id=_uid); st.success("Saved.")
 
 if STYLE_IDX is not None:
   with tabs[STYLE_IDX]:
@@ -1948,7 +1952,7 @@ if STYLE_IDX is not None:
             for u in uploads:
                 p = sd / u.name; p.write_bytes(u.read()); paths.append(str(p))
             with st.spinner(f"Analyzing {len(paths)} deck(s)..."):
-                prof = extract_style_profile(paths); save_style_profile(prof)
+                prof = extract_style_profile(paths); save_style_profile(prof, user_id=_uid)
                 st.session_state["style_profile"] = prof; st.success("Saved.")
     profile = st.session_state["style_profile"]
     if profile:
@@ -2081,7 +2085,7 @@ if STYLE_IDX is not None:
                          use_container_width=True,
                          help="Discard your manual adjustments and restore the auto-detected values."):
                 profile.pop("user_dimensions", None)
-                save_style_profile(profile)
+                save_style_profile(profile, user_id=_uid)
                 # Clear slider widget state too so they snap back
                 for _key in list(st.session_state.keys()):
                     if _key.startswith("dim_slider_"):
@@ -2116,7 +2120,7 @@ if STYLE_IDX is not None:
         # Persist user overrides if they differ from current dims
         if new_dims != dims:
             profile["user_dimensions"] = new_dims
-            save_style_profile(profile)
+            save_style_profile(profile, user_id=_uid)
             st.rerun()
 
         # ---------- Style summary card ----------
@@ -2228,13 +2232,13 @@ if OUTLINE_IDX is not None:
             help="AI picks an Excel simulation (for stats/data tasks) or a real web tool (for visual exploration). You'll get an .xlsx to hand out when Excel is chosen.")
 
     # ----- 🧠 Course memory section -----
-    _all_mem_detailed = list_all_memory()  # only on-disk detailed entries
+    _all_mem_detailed = list_all_memory(user_id=_uid)  # only on-disk detailed entries
     _current_week = (selected_session or {}).get("week") if selected_session else None
     _prior_mem = []
     if _current_week:
         # Use the syllabus-aware loader: every prior week gets memory,
         # detailed if outline was generated, otherwise from syllabus topics.
-        _prior_mem = load_prior_memory_with_syllabus(int(_current_week), syl_obj)
+        _prior_mem = load_prior_memory_with_syllabus(int(_current_week), syl_obj, user_id=_uid)
 
     n_detailed_in_prior = sum(1 for m in _prior_mem if not m.get("from_syllabus_only"))
     n_syllabus_in_prior = sum(1 for m in _prior_mem if m.get("from_syllabus_only"))
@@ -2269,7 +2273,7 @@ if OUTLINE_IDX is not None:
         with mem_col2:
             if _all_mem_detailed and st.button("🗑 Clear detailed", key="clear_memory_btn",
                                                 help="Remove all saved per-week detailed memory. Syllabus-based memory is unaffected (it always comes from Stage 1)."):
-                n = clear_memory()
+                n = clear_memory(user_id=_uid)
                 st.success(f"Cleared {n} detailed memory file(s).")
                 st.rerun()
 
@@ -2323,7 +2327,7 @@ if OUTLINE_IDX is not None:
                     try:
                         with st.spinner("Saving session to course memory..."):
                             mem = extract_session_memory(outline_json)
-                            save_session_memory(int(_current_week), topic, mem)
+                            save_session_memory(int(_current_week), topic, mem, user_id=_uid)
                             st.toast(f"🧠 Saved Week {_current_week} to course memory", icon="💾")
                     except Exception as e:
                         st.warning(f"Memory save skipped: {e}")
